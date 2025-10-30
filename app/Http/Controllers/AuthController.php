@@ -50,12 +50,12 @@ class AuthController extends Controller
             ],
         ]);
 
-        return redirect()->intended('/')->with('status', 'Logged in with Firebase');
+        return redirect()->intended('/admin')->with('status', 'Logged in with Firebase');
     }
 
     public function logout(Request $request)
     {
         $request->session()->forget(['firebase_id_token', 'firebase_refresh_token', 'firebase_user']);
-        return redirect('/login')->with('status', 'Logged out');
+        return redirect('/login')->with('status', 'Logged out successfully');
     }
 }
