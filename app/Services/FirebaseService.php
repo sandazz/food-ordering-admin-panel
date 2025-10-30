@@ -5,6 +5,8 @@ namespace App\Services;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ConnectException;
 
 class FirebaseService
 {
@@ -13,6 +15,7 @@ class FirebaseService
     protected string $projectId;
     protected ?string $accessToken = null;
     protected ?int $accessTokenExpiry = null;
+    protected array $guzzleOptions = [];
 
     public function __construct()
     {
@@ -25,13 +28,24 @@ class FirebaseService
         $credentials = json_decode(file_get_contents(storage_path('app/firebase/firebase_credentials.json')), true);
         $this->projectId = $credentials['project_id'];
         
-        // Initialize HTTP client for Firestore REST API (we'll add Authorization header per-request)
-        $this->httpClient = new Client([
+        // Default Guzzle options — tune timeouts and retries to be resilient to transient network issues
+        $this->guzzleOptions = [
             'base_uri' => "https://firestore.googleapis.com/v1/projects/{$this->projectId}/databases/(default)/documents/",
             'headers' => [
                 'Content-Type' => 'application/json',
-            ]
-        ]);
+                'Connection' => 'keep-alive',
+            ],
+            // Don't throw exceptions for 4xx/5xx so we can handle them uniformly
+            'http_errors' => false,
+            // reasonable timeouts
+            'timeout' => 15,
+            'connect_timeout' => 5,
+            // Enable debug output only when APP_DEBUG is true and running in CLI to avoid
+            // passing invalid output streams to cURL in web/FPM SAPI environments.
+            'debug' => (bool) (config('app.debug', false) && php_sapi_name() === 'cli'),
+        ];
+
+        $this->httpClient = new Client($this->guzzleOptions);
     }
 
     protected function getAccessToken()
@@ -101,7 +115,7 @@ class FirebaseService
     public function getCollection(string $collectionName)
     {
         $token = $this->getAccessToken();
-        $response = $this->httpClient->get($collectionName, [
+        $response = $this->performRequest('GET', $collectionName, [
             'headers' => ['Authorization' => "Bearer {$token}"]
         ]);
         return json_decode($response->getBody()->getContents(), true);
@@ -110,7 +124,7 @@ class FirebaseService
     public function getDocument(string $collectionName, string $documentId)
     {
         $token = $this->getAccessToken();
-        $response = $this->httpClient->get("{$collectionName}/{$documentId}", [
+        $response = $this->performRequest('GET', "{$collectionName}/{$documentId}", [
             'headers' => ['Authorization' => "Bearer {$token}"]
         ]);
         return json_decode($response->getBody()->getContents(), true);
@@ -120,7 +134,7 @@ class FirebaseService
     {
         $endpoint = $documentId ? "{$collectionName}?documentId={$documentId}" : $collectionName;
         $token = $this->getAccessToken();
-        $response = $this->httpClient->post($endpoint, [
+        $response = $this->performRequest('POST', $endpoint, [
             'headers' => ['Authorization' => "Bearer {$token}"],
             'json' => ['fields' => $this->encodeFirestoreData($data)]
         ]);
@@ -130,7 +144,7 @@ class FirebaseService
     public function updateDocument(string $collectionName, string $documentId, array $data)
     {
         $token = $this->getAccessToken();
-        $response = $this->httpClient->patch("{$collectionName}/{$documentId}", [
+        $response = $this->performRequest('PATCH', "{$collectionName}/{$documentId}", [
             'headers' => ['Authorization' => "Bearer {$token}"],
             'json' => ['fields' => $this->encodeFirestoreData($data)]
         ]);
@@ -140,10 +154,48 @@ class FirebaseService
     public function deleteDocument(string $collectionName, string $documentId)
     {
         $token = $this->getAccessToken();
-        $response = $this->httpClient->delete("{$collectionName}/{$documentId}", [
+        $response = $this->performRequest('DELETE', "{$collectionName}/{$documentId}", [
             'headers' => ['Authorization' => "Bearer {$token}"]
         ]);
         return in_array($response->getStatusCode(), [200, 202, 204], true);
+    }
+
+    /**
+     * Perform an HTTP request with simple retry/backoff for transient network errors.
+     *
+     * @param string $method
+     * @param string $uri
+     * @param array $options
+     * @param int $retries
+     * @return \Psr\Http\Message\ResponseInterface
+     */
+    protected function performRequest(string $method, string $uri, array $options = [], int $retries = 3)
+    {
+        $attempt = 0;
+        $lastException = null;
+
+        while ($attempt < $retries) {
+            try {
+                return $this->httpClient->request($method, $uri, $options);
+            } catch (ConnectException $e) {
+                $lastException = $e;
+                // connection-level errors: retry
+            } catch (RequestException $e) {
+                $lastException = $e;
+                // For server errors or network resets, retry
+            }
+
+            $attempt++;
+            // exponential backoff
+            sleep((int) pow(2, $attempt));
+        }
+
+        // If we reach here, rethrow the last exception for visibility
+        if ($lastException) {
+            throw $lastException;
+        }
+
+        throw new \RuntimeException('Unexpected error performing HTTP request to Firestore.');
     }
 
     protected function base64UrlEncode(string $input)

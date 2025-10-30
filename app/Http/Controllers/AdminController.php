@@ -3,18 +3,25 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Services\FirebaseService;
+use Illuminate\Support\Str;
 
 class AdminController extends Controller
 {
     public function dashboard(Request $request, FirebaseService $firebase)
     {
-        // Example: fetch recent orders (global orders collection, limit 10)
-        $orders = $firebase->getCollection('orders');
-        $recentOrders = $orders['documents'] ?? [];
+        $rawResponse = $firebase->getCollection('orders');
+        $rawDocuments = $rawResponse['documents'] ?? [];
+        $recentOrders = [];
+
+        foreach ($rawDocuments as $document) {
+            $documentId = Str::afterLast($document['name'], '/');
+            $recentOrders[$documentId] = $document;
+        }
+
         return view('admin.dashboard', [
             'recentOrders' => $recentOrders,
         ]);
-    }
+}
 
     // Add stubs for other admin panel pages
     public function orders() { return view('admin.orders'); }

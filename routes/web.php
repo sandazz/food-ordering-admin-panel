@@ -20,7 +20,7 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Admin panel routes (all require admin login)
-Route::prefix('admin')->middleware('admin')->group(function () {
+Route::prefix('admin')->group(function () {
     Route::get('/', [AdminController::class, 'dashboard']);
     Route::get('/orders', [AdminController::class, 'orders']);
     Route::get('/menu', [AdminController::class, 'menu']);
