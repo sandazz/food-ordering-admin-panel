@@ -28,6 +28,25 @@
             <a href="{{ url('/logout') }}">Logout</a>
         </nav>
         <main class="col-md-10 py-4">
+            <div class="d-flex justify-content-end align-items-center mb-3">
+                @isset($branches)
+                <form method="POST" action="{{ route('branch.select') }}" class="d-flex align-items-center gap-2">
+                    @csrf
+                    <select name="branchId" class="form-select form-select-sm" style="width:260px" onchange="this.form.submit()">
+                        <option value="">All Branches</option>
+                        @foreach($branches as $b)
+                          <option value="{{ $b['id'] }}" {{ ($currentBranchId ?? '') === $b['id'] ? 'selected' : '' }}>{{ $b['name'] }}</option>
+                        @endforeach
+                    </select>
+                </form>
+                @if(!empty($currentBranchId))
+                <form method="POST" action="{{ route('branch.clear') }}" class="ms-2">
+                    @csrf
+                    <button class="btn btn-sm btn-outline-secondary">Clear</button>
+                </form>
+                @endif
+                @endisset
+            </div>
             @yield('content')
         </main>
     </div>
