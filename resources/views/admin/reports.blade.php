@@ -27,7 +27,7 @@
       </label>
     </div>
     <div style="margin-left:auto;display:flex;gap:8px;">
-      <button onclick="refreshAll()">Refresh</button>
+      <button id="refreshBtn" onclick="refreshAll()">Refresh</button>
       <form method="GET" action="{{ route('reports.export') }}" target="_blank" id="exportForm" style="display:flex;gap:8px;align-items:center;">
         <input type="hidden" name="period" id="exportPeriod" value="daily">
         <input type="hidden" name="branchId" id="exportBranchId" value="">
@@ -41,7 +41,7 @@
           <option value="xlsx">Excel</option>
           <option value="pdf">PDF</option>
         </select>
-        <button type="submit">Export</button>
+        <button type="submit" id="exportBtn">Export</button>
       </form>
     </div>
   </div>
@@ -78,6 +78,8 @@
 </div>
 
 <script>
+function btnStart(btn, text){ if(!btn) return; btn.disabled = true; btn.dataset._orig = btn.innerHTML; btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;vertical-align:-2px;"></span> ' + (text||'Loading...'); }
+function btnDone(btn){ if(!btn) return; btn.disabled = false; if(btn.dataset._orig){ btn.innerHTML = btn.dataset._orig; delete btn.dataset._orig; } }
 let salesChart, itemsChart, slotsChart;
 function syncExportInputs(){
   document.getElementById('exportPeriod').value = document.getElementById('period').value;
@@ -99,9 +101,9 @@ async function loadSales(){
   const totals = data.map(d=>d.total);
   const orders = data.map(d=>d.orders);
   const ctx = document.getElementById('salesChart');
-  salesChart = upsertChart(salesChart, ctx, 'line', {labels, datasets:[{label:'Total', data:totals, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.2)', tension:.3}, {label:'Orders', data:orders, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.2)', tension:.3}]});
+  salesChart = upsertChart(salesChart, ctx, 'line', {labels, datasets:[{label:'Total', data:totals, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.2)', tension:.3}]});
   const tbody = document.getElementById('salesTable');
-  tbody.innerHTML = data.map(d=>`<tr><td style="padding:6px;border-bottom:1px solid #f3f4f6;">${d.period}</td><td style="padding:6px;text-align:right;border-bottom:1px solid #f3f4f6;">${d.orders}</td><td style=\"padding:6px;text-align:right;border-bottom:1px solid #f3f4f6;\">${fmt(d.total)}</td></tr>`).join('');
+  tbody.innerHTML = data.map(d=>`<tr><td style="padding:6px;border-bottom:1px solid #f3f4f6;">${d.period}</td><td style="padding:6px;text-align:right;border-bottom:1px solid #f3f4f6;">${d.orders}</td><td style="padding:6px;text-align:right;border-bottom:1px solid #f3f4f6;">${fmt(d.total)}</td></tr>`).join('');
 }
 async function loadTopItems(){
   const f = filters(); f.limit = 10;
@@ -118,10 +120,18 @@ async function loadBusySlots(){
   const ctx = document.getElementById('slotsChart');
   slotsChart = upsertChart(slotsChart, ctx, 'bar', {labels, datasets:[{label:'Orders', data:cnt, backgroundColor:'#f59e0b'}]}, {plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}});
 }
-function refreshAll(){ syncExportInputs(); loadSales(); loadTopItems(); loadBusySlots(); }
+async function refreshAll(){
+  syncExportInputs();
+  const btn = document.getElementById('refreshBtn');
+  btnStart(btn, 'Refreshing...');
+  try {
+    await Promise.all([loadSales(), loadTopItems(), loadBusySlots()]);
+  } finally { btnDone(btn); }
+}
 document.getElementById('period').addEventListener('change', refreshAll);
 document.getElementById('branchId').addEventListener('change', refreshAll);
 syncExportInputs();
 refreshAll();
+document.getElementById('exportForm').addEventListener('submit', function(){ btnStart(document.getElementById('exportBtn'), 'Exporting...'); setTimeout(()=>btnDone(document.getElementById('exportBtn')), 1500); });
 </script>
 @endsection

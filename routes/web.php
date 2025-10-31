@@ -47,6 +47,10 @@ Route::prefix('admin')->group(function () {
     Route::put('/menu/categories/{categoryId}/items/{itemId}', [MenuController::class, 'updateItem'])->name('menu.items.update');
     Route::delete('/menu/categories/{categoryId}/items/{itemId}', [MenuController::class, 'destroyItem'])->name('menu.items.destroy');
 
+    // Category copy between branches
+    Route::get('/menu/categories/{categoryId}/copy', [MenuController::class, 'copyCategoryForm'])->name('menu.categories.copy.form');
+    Route::post('/menu/categories/{categoryId}/copy', [MenuController::class, 'copyCategory'])->name('menu.categories.copy');
+
     // Staff CRUD
     Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
     Route::get('/staff/create', [StaffController::class, 'create'])->name('staff.create');

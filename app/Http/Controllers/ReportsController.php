@@ -248,13 +248,62 @@ class ReportsController extends Controller
             $ts = $this->parseTimestamp($o['fields']['createdAt'] ?? []);
             if (!$ts) { continue; }
             $key = $period === 'daily' ? $ts->format('Y-m-d') : ($period === 'weekly' ? $ts->format('o-\WW') : $ts->format('Y-m'));
-            $totalField = $o['fields']['total'] ?? [];
-            $total = isset($totalField['doubleValue']) ? (float)$totalField['doubleValue'] : (float)($totalField['integerValue'] ?? 0);
+            $total = $this->extractTotal($o['fields'] ?? []);
             if (!isset($buckets[$key])) { $buckets[$key] = ['period' => $key, 'orders' => 0, 'total' => 0.0]; }
             $buckets[$key]['orders'] += 1;
             $buckets[$key]['total'] += $total;
         }
         ksort($buckets);
         return array_values($buckets);
+    }
+
+    private function extractTotal(array $fields): float
+    {
+        // Prefer totalAmount if present (as used by OrdersController), fallback to total
+        $candidates = [
+            $fields['totalAmount'] ?? null,
+            $fields['total'] ?? null,
+        ];
+        foreach ($candidates as $f) {
+            if (is_array($f)) {
+                if (array_key_exists('doubleValue', $f)) return (float)$f['doubleValue'];
+                if (array_key_exists('integerValue', $f)) return (float)$f['integerValue'];
+            }
+        }
+        // Try compute from parts: subtotal + tax + serviceCharge - discounts
+        $subtotal = $this->numOrNull($fields['subtotal'] ?? null);
+        $tax = $this->numOrNull($fields['tax'] ?? null);
+        $service = $this->numOrNull($fields['serviceCharge'] ?? null);
+        $delivery = $this->numOrNull($fields['deliveryFee'] ?? null);
+        $discount = $this->numOrNull($fields['discount'] ?? null);
+        if ($subtotal !== null) {
+            $sum = $subtotal + ($tax ?? 0) + ($service ?? 0) + ($delivery ?? 0) - ($discount ?? 0);
+            return (float)$sum;
+        }
+        // Fallback: sum items by (lineTotal) or (price*qty)
+        $items = $fields['items']['arrayValue']['values'] ?? [];
+        $sum = 0.0;
+        foreach ($items as $iv) {
+            $mf = $iv['mapValue']['fields'] ?? [];
+            $line = $this->numOrNull($mf['lineTotal'] ?? null);
+            if ($line !== null) { $sum += (float)$line; continue; }
+            $price = $this->numOrNull($mf['price'] ?? null) ?? 0.0;
+            $qty = isset($mf['qty']['integerValue']) ? (int)$mf['qty']['integerValue'] : (int)($mf['quantity']['integerValue'] ?? 1);
+            $sum += $price * max(1, $qty);
+        }
+        return (float)$sum;
+    }
+
+    private function numOrNull($firestoreField): ?float
+    {
+        if (!is_array($firestoreField)) return null;
+        if (array_key_exists('doubleValue', $firestoreField)) return (float)$firestoreField['doubleValue'];
+        if (array_key_exists('integerValue', $firestoreField)) return (float)$firestoreField['integerValue'];
+        if (array_key_exists('stringValue', $firestoreField)) {
+            $v = trim($firestoreField['stringValue']);
+            if ($v === '') return null;
+            if (is_numeric($v)) return (float)$v;
+        }
+        return null;
     }
 }

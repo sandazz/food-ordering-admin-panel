@@ -52,7 +52,7 @@
         </div>
 
         <div style="display:flex;gap:8px;">
-            <button type="submit">Send Notification</button>
+            <button type="submit" id="sendBtn">Send Notification</button>
         </div>
     </div>
 
@@ -71,6 +71,9 @@
 </form>
 
 <script>
+function btnStart(btn, text){ if(!btn) return; btn.disabled = true; btn.dataset._orig = btn.innerHTML; btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;vertical-align:-2px;"></span> ' + (text||'Processing...'); }
+function btnDone(btn){ if(!btn) return; btn.disabled = false; if(btn.dataset._orig){ btn.innerHTML = btn.dataset._orig; delete btn.dataset._orig; } }
+document.querySelector('form[action="{{ route('notifications.send') }}"]').addEventListener('submit', function(){ const b=document.getElementById('sendBtn'); btnStart(b,'Sending...'); setTimeout(()=>btnDone(b), 1200); });
 function updateCount(id, outId, max){
   const v = document.getElementById(id).value.length; document.getElementById(outId).textContent = v + ' / ' + max;
 }

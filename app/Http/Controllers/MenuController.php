@@ -195,6 +195,83 @@ class MenuController extends Controller
         return redirect()->route('menu.index')->with('status', 'Category deleted');
     }
 
+    // Copy a category (and its items) to other branches
+    public function copyCategoryForm(Request $request, FirebaseService $firebase, string $categoryId)
+    {
+        [$restaurantId, $branchId] = $this->ctx($request);
+        if (!$restaurantId || !$branchId) {
+            return redirect()->route('settings.context')->with('status', 'Select restaurant and branch first.');
+        }
+        $catDoc = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus", $categoryId);
+        if (empty($catDoc['fields'])) {
+            return redirect()->route('menu.index')->with('status', 'Category not found');
+        }
+        $branchesResp = $firebase->getCollection("restaurants/{$restaurantId}/branches");
+        $branchesDocs = $branchesResp['documents'] ?? [];
+        $branches = [];
+        foreach ($branchesDocs as $bd) {
+            $bid = Str::afterLast($bd['name'], '/');
+            if ($bid === $branchId) continue; // exclude current branch
+            $bf = $bd['fields'] ?? [];
+            $branches[] = [
+                'id' => $bid,
+                'name' => $bf['name']['stringValue'] ?? $bid,
+            ];
+        }
+        $categoryName = $catDoc['fields']['name']['stringValue'] ?? $categoryId;
+        return view('admin.menu.category-copy', compact('categoryId', 'categoryName', 'branches'));
+    }
+
+    public function copyCategory(Request $request, FirebaseService $firebase, string $categoryId)
+    {
+        $data = $request->validate([
+            'targets' => 'required|array|min:1',
+            'targets.*' => 'string',
+        ]);
+        [$restaurantId, $sourceBranchId] = $this->ctx($request);
+        if (!$restaurantId || !$sourceBranchId) {
+            return redirect()->route('settings.context')->with('status', 'Select restaurant and branch first.');
+        }
+
+        $srcBase = "restaurants/{$restaurantId}/branches/{$sourceBranchId}/menus/{$categoryId}";
+        $catDoc = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$sourceBranchId}/menus", $categoryId);
+        $cf = $catDoc['fields'] ?? [];
+        if (empty($cf)) { return redirect()->route('menu.index')->with('status', 'Source category not found'); }
+        $catPayload = [
+            'name' => $cf['name']['stringValue'] ?? '',
+            'description' => $cf['description']['stringValue'] ?? '',
+            'displayOrder' => (int) ($cf['displayOrder']['integerValue'] ?? 0),
+        ];
+        // Load items from source
+        $itemsResp = $firebase->getCollection($srcBase . '/items');
+        $itemDocs = $itemsResp['documents'] ?? [];
+        $items = [];
+        foreach ($itemDocs as $doc) {
+            $iid = Str::afterLast($doc['name'], '/');
+            $f = $doc['fields'] ?? [];
+            $items[] = [
+                'id' => $iid,
+                'payload' => [
+                    'name' => $f['name']['stringValue'] ?? '',
+                    'description' => $f['description']['stringValue'] ?? '',
+                    'price' => isset($f['price']['doubleValue']) ? (float)$f['price']['doubleValue'] : (float)($f['price']['integerValue'] ?? 0),
+                    'available' => (bool)($f['available']['booleanValue'] ?? true),
+                    'imageUrl' => $f['imageUrl']['stringValue'] ?? '',
+                ],
+            ];
+        }
+
+        // Copy to each target branch (upsert with same IDs)
+        foreach ($data['targets'] as $targetBranchId) {
+            if ($targetBranchId === $sourceBranchId) continue;
+            $firebase->createDocument("restaurants/{$restaurantId}/branches/{$targetBranchId}/menus", $catPayload, $categoryId);
+            foreach ($items as $it) {
+                $firebase->createDocument("restaurants/{$restaurantId}/branches/{$targetBranchId}/menus/{$categoryId}/items", $it['payload'], $it['id']);
+            }
+        }
+        return redirect()->route('menu.index')->with('status', 'Category copied to selected branches');
+    }
+
     // Item CRUD
     public function createItem(Request $request, string $categoryId)
     {

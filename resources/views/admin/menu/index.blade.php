@@ -23,6 +23,7 @@
             <div>
               <a class="btn btn-sm btn-outline-primary" href="{{ route('menu.items.create', $cat['id']) }}">Add Item</a>
               <a class="btn btn-sm btn-outline-secondary" href="{{ route('menu.categories.edit', $cat['id']) }}">Edit</a>
+              <a class="btn btn-sm btn-outline-success" href="{{ route('menu.categories.copy.form', $cat['id']) }}">Copy to Branches</a>
               <form action="{{ route('menu.categories.destroy', $cat['id']) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete category?')">
                 @csrf
                 @method('DELETE')
