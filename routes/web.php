@@ -13,9 +13,12 @@ use App\Http\Controllers\OrdersController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\NotificationsController;
 
-// Redirect root to admin dashboard if logged in, otherwise to login
+// Redirect root to selection if logged in without restaurant, otherwise admin or login
 Route::get('/', function() {
-    return session('firebase_user') ? redirect('/admin') : redirect('/login');
+    if (session('firebase_user')) {
+        return session('restaurantId') ? redirect('/admin') : redirect()->route('settings.context');
+    }
+    return redirect('/login');
 });
 
 Route::get('/firebase-test', [FirebaseController::class, 'test']);
@@ -52,6 +55,10 @@ Route::prefix('admin')->group(function () {
     Route::put('/staff/{staffId}', [StaffController::class, 'update'])->name('staff.update');
     Route::delete('/staff/{staffId}', [StaffController::class, 'destroy'])->name('staff.destroy');
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
+    Route::get('/reports/sales', [ReportsController::class, 'sales'])->name('reports.sales');
+    Route::get('/reports/top-items', [ReportsController::class, 'topItems'])->name('reports.top_items');
+    Route::get('/reports/busy-slots', [ReportsController::class, 'busySlots'])->name('reports.busy_slots');
+    Route::get('/reports/export', [ReportsController::class, 'export'])->name('reports.export');
     Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/send', [NotificationsController::class, 'send'])->name('notifications.send');
 
@@ -61,6 +68,11 @@ Route::prefix('admin')->group(function () {
     Route::post('/settings/context', [SettingsController::class, 'saveContext'])->name('settings.context.save');
     Route::post('/branch/select', [SettingsController::class, 'setBranch'])->name('branch.select');
     Route::post('/branch/clear', [SettingsController::class, 'clearBranch'])->name('branch.clear');
+
+    Route::get('/settings/system', [SettingsController::class, 'system'])->name('settings.system');
+    Route::post('/settings/system', [SettingsController::class, 'saveSystem'])->name('settings.system.save');
+    Route::post('/settings/gdpr/delete-user', [SettingsController::class, 'gdprDeleteUser'])->name('settings.gdpr.delete_user');
+    Route::get('/settings/gdpr/consents/export', [SettingsController::class, 'exportConsents'])->name('settings.gdpr.consents.export');
 
     // Restaurants CRUD
     Route::get('/settings/restaurants', [SettingsController::class, 'restaurants'])->name('settings.restaurants');

@@ -50,12 +50,16 @@ class AuthController extends Controller
             ],
         ]);
 
+        if (! session('restaurantId')) {
+            return redirect()->route('settings.context')->with('status', 'Please select a restaurant to continue.');
+        }
+
         return redirect()->intended('/admin')->with('status', 'Logged in with Firebase');
     }
 
     public function logout(Request $request)
     {
-        $request->session()->forget(['firebase_id_token', 'firebase_refresh_token', 'firebase_user']);
+        $request->session()->forget(['firebase_id_token', 'firebase_refresh_token', 'firebase_user', 'restaurantId', 'branchId']);
         return redirect('/login')->with('status', 'Logged out successfully');
     }
 }

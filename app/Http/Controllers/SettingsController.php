@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Services\FirebaseService;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SettingsController extends Controller
 {
@@ -53,6 +54,138 @@ class SettingsController extends Controller
     {
         $request->session()->forget('branchId');
         return back()->with('status', 'Branch cleared (showing all branches)');
+    }
+
+    // System Settings: payments, features, pricing, localization, GDPR
+    public function system(Request $request, FirebaseService $firebase)
+    {
+        $doc = $firebase->getDocument('system_settings', 'global');
+        $f = $doc['fields'] ?? [];
+        $settings = [
+            'payments' => [
+                'gateway' => $f['payments']['mapValue']['fields']['gateway']['stringValue'] ?? 'manual',
+                'enabled' => isset($f['payments']['mapValue']['fields']['enabled']['booleanValue']) ? (bool)$f['payments']['mapValue']['fields']['enabled']['booleanValue'] : true,
+            ],
+            'features' => [
+                'delivery' => isset($f['features']['mapValue']['fields']['delivery']['booleanValue']) ? (bool)$f['features']['mapValue']['fields']['delivery']['booleanValue'] : true,
+                'pickup' => isset($f['features']['mapValue']['fields']['pickup']['booleanValue']) ? (bool)$f['features']['mapValue']['fields']['pickup']['booleanValue'] : true,
+            ],
+            'pricing' => [
+                'taxRate' => isset($f['pricing']['mapValue']['fields']['taxRate']['doubleValue']) ? (float)$f['pricing']['mapValue']['fields']['taxRate']['doubleValue'] : (float)($f['pricing']['mapValue']['fields']['taxRate']['integerValue'] ?? 0),
+                'serviceCharge' => isset($f['pricing']['mapValue']['fields']['serviceCharge']['doubleValue']) ? (float)$f['pricing']['mapValue']['fields']['serviceCharge']['doubleValue'] : (float)($f['pricing']['mapValue']['fields']['serviceCharge']['integerValue'] ?? 0),
+                'deliveryFee' => isset($f['pricing']['mapValue']['fields']['deliveryFee']['doubleValue']) ? (float)$f['pricing']['mapValue']['fields']['deliveryFee']['doubleValue'] : (float)($f['pricing']['mapValue']['fields']['deliveryFee']['integerValue'] ?? 0),
+            ],
+            'localization' => [
+                'default_locale' => $f['localization']['mapValue']['fields']['default_locale']['stringValue'] ?? 'en',
+                'locales' => array_map(fn($v)=>$v['stringValue'] ?? 'en', $f['localization']['mapValue']['fields']['locales']['arrayValue']['values'] ?? [['stringValue'=>'en']]),
+            ],
+            'gdpr' => [
+                'consent_required' => isset($f['gdpr']['mapValue']['fields']['consent_required']['booleanValue']) ? (bool)$f['gdpr']['mapValue']['fields']['consent_required']['booleanValue'] : false,
+                'retention_days' => (int)($f['gdpr']['mapValue']['fields']['retention_days']['integerValue'] ?? 0),
+            ],
+        ];
+        return view('admin.settings.system', compact('settings'));
+    }
+
+    public function saveSystem(Request $request, FirebaseService $firebase)
+    {
+        $data = $request->validate([
+            'payments.gateway' => 'required|string',
+            'payments.enabled' => 'required|boolean',
+            'features.delivery' => 'required|boolean',
+            'features.pickup' => 'required|boolean',
+            'pricing.taxRate' => 'required|numeric|min:0',
+            'pricing.serviceCharge' => 'required|numeric|min:0',
+            'pricing.deliveryFee' => 'required|numeric|min:0',
+            'localization.default_locale' => 'required|string',
+            'localization.locales' => 'nullable|array',
+            'localization.locales.*' => 'string',
+            'gdpr.consent_required' => 'required|boolean',
+            'gdpr.retention_days' => 'nullable|integer|min:0',
+        ]);
+
+        $payload = [
+            'payments' => [
+                'gateway' => data_get($data, 'payments.gateway'),
+                'enabled' => (bool)data_get($data, 'payments.enabled'),
+            ],
+            'features' => [
+                'delivery' => (bool)data_get($data, 'features.delivery'),
+                'pickup' => (bool)data_get($data, 'features.pickup'),
+            ],
+            'pricing' => [
+                'taxRate' => (float)data_get($data, 'pricing.taxRate'),
+                'serviceCharge' => (float)data_get($data, 'pricing.serviceCharge'),
+                'deliveryFee' => (float)data_get($data, 'pricing.deliveryFee'),
+            ],
+            'localization' => [
+                'default_locale' => data_get($data, 'localization.default_locale'),
+                'locales' => array_values((array) data_get($data, 'localization.locales', [])),
+            ],
+            'gdpr' => [
+                'consent_required' => (bool)data_get($data, 'gdpr.consent_required'),
+                'retention_days' => (int) data_get($data, 'gdpr.retention_days', 0),
+            ],
+        ];
+
+        // Upsert global settings
+        $existing = $firebase->getDocument('system_settings', 'global');
+        if (!empty($existing['name'])) {
+            $firebase->updateDocument('system_settings', 'global', $payload);
+        } else {
+            $firebase->createDocument('system_settings', $payload, 'global');
+        }
+        return back()->with('status', 'System settings saved');
+    }
+
+    public function gdprDeleteUser(Request $request, FirebaseService $firebase)
+    {
+        $data = $request->validate([
+            'userId' => 'required_without:email|string',
+            'email' => 'nullable|email',
+        ]);
+        $deleted = false;
+        if (!empty($data['userId'])) {
+            // Try deleting from users collection if exists
+            $deleted = $firebase->deleteDocument('users', $data['userId']);
+        }
+        // Log request
+        $firebase->createDocument('gdpr_requests', [
+            'type' => 'delete_user',
+            'userId' => $data['userId'] ?? '',
+            'email' => $data['email'] ?? '',
+            'status' => $deleted ? 'deleted' : 'requested',
+            'createdAt' => now()->toIso8601String(),
+        ]);
+        return back()->with('status', $deleted ? 'User data deleted' : 'Deletion requested');
+    }
+
+    public function exportConsents(Request $request, FirebaseService $firebase)
+    {
+        $resp = $firebase->getCollection('consent_logs');
+        $docs = $resp['documents'] ?? [];
+        $rows = [];
+        foreach ($docs as $doc) {
+            $f = $doc['fields'] ?? [];
+            $rows[] = [
+                $f['userId']['stringValue'] ?? '',
+                $f['action']['stringValue'] ?? '',
+                $f['ip']['stringValue'] ?? '',
+                $f['userAgent']['stringValue'] ?? '',
+                $f['createdAt']['timestampValue'] ?? ($f['createdAt']['stringValue'] ?? ''),
+            ];
+        }
+        $headers = ['userId','action','ip','userAgent','createdAt'];
+        $filename = 'consents_' . date('Ymd_His') . '.csv';
+        $response = new StreamedResponse(function() use ($headers, $rows) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, $headers);
+            foreach ($rows as $r) { fputcsv($handle, $r); }
+            fclose($handle);
+        });
+        $response->headers->set('Content-Type', 'text/csv');
+        $response->headers->set('Content-Disposition', 'attachment; filename="'.$filename.'"');
+        return $response;
     }
 
     // Restaurants CRUD
