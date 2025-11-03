@@ -28,8 +28,8 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Admin panel routes (all require admin login)
-Route::prefix('admin')->group(function () {
+// Admin panel routes
+Route::prefix('admin')->middleware(['branch_admin'])->group(function () {
     Route::get('/', [AdminController::class, 'dashboard']);
     Route::get('/orders', [OrdersController::class, 'index'])->name('orders.index');
     // Menu Categories & Items

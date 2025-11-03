@@ -36,6 +36,7 @@
         </nav>
         <main class="col-md-10 py-4">
             <div class="d-flex justify-content-end align-items-center mb-3">
+                @if(session('role') !== 'branch_admin')
                 @isset($branches)
                 <form method="POST" action="{{ route('branch.select') }}" class="d-flex align-items-center gap-2">
                     @csrf
@@ -53,6 +54,7 @@
                 </form>
                 @endif
                 @endisset
+                @endif
             </div>
             @yield('content')
         </main>
