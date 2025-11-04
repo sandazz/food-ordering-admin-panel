@@ -1,18 +1,18 @@
 @extends('layouts.admin')
 @section('content')
-<h2>Notification Management</h2>
+<h2>{{ \App\Utils\UIStrings::t('notifications.title') }}</h2>
 <form method="POST" action="{{ route('notifications.send') }}">
     @csrf
     <div style="display:grid;gap:12px;max-width:760px;">
         <div style="display:grid;gap:4px;">
-            <label>Title</label>
+            <label>{{ \App\Utils\UIStrings::t('notifications.title_label') }}</label>
             <div style="display:flex;gap:8px;align-items:center;">
                 <input type="text" name="title" id="title" required maxlength="120" style="flex:1;" />
                 <small id="titleCount" style="color:#6b7280;min-width:80px;text-align:right;">0 / 120</small>
             </div>
         </div>
         <div style="display:grid;gap:4px;">
-            <label>Body</label>
+            <label>{{ \App\Utils\UIStrings::t('notifications.body_label') }}</label>
             <div style="display:flex;gap:8px;">
                 <textarea name="body" id="body" required maxlength="500" rows="4" style="flex:1;"></textarea>
                 <small id="bodyCount" style="color:#6b7280;min-width:80px;text-align:right;">0 / 500</small>
@@ -21,38 +21,38 @@
 
         <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;">
             <div style="display:flex;gap:0;border-bottom:1px solid #e5e7eb;">
-                <button type="button" id="tabToken" class="tab active" onclick="switchTab('token')" style="padding:8px 12px;border:0;background:#ffffff;border-right:1px solid #e5e7eb;">By Token</button>
-                <button type="button" id="tabTopics" class="tab" onclick="switchTab('topics')" style="padding:8px 12px;border:0;background:#f3f4f6;">By Topics</button>
+                <button type="button" id="tabToken" class="tab active" onclick="switchTab('token')" style="padding:8px 12px;border:0;background:#ffffff;border-right:1px solid #e5e7eb;">{{ \App\Utils\UIStrings::t('notifications.by_token') }}</button>
+                <button type="button" id="tabTopics" class="tab" onclick="switchTab('topics')" style="padding:8px 12px;border:0;background:#f3f4f6;">{{ \App\Utils\UIStrings::t('notifications.by_topics') }}</button>
             </div>
             <div id="panelToken" style="padding:12px;display:block;">
                 <div style="display:grid;gap:8px;">
-                    <label>Device Token
-                        <input type="text" name="token" id="tokenInput" placeholder="FCM device token" />
+                    <label>{{ \App\Utils\UIStrings::t('notifications.device_token') }}
+                        <input type="text" name="token" id="tokenInput" placeholder="{{ \App\Utils\UIStrings::t('notifications.device_token_placeholder') }}" />
                     </label>
-                    <small style="color:#6b7280;">When a token is provided, topics will be ignored.</small>
+                    <small style="color:#6b7280;">{{ \App\Utils\UIStrings::t('notifications.token_hint') }}</small>
                 </div>
             </div>
             <div id="panelTopics" style="padding:12px;display:none;">
                 <div style="display:grid;gap:8px;grid-template-columns:repeat(2, minmax(0,1fr));">
-                    <label>Restaurant ID
+                    <label>{{ \App\Utils\UIStrings::t('notifications.restaurant_id') }}
                         <input type="text" name="restaurantId" id="restaurantId" placeholder="restaurant_xxx" />
                     </label>
-                    <label>Region
+                    <label>{{ \App\Utils\UIStrings::t('notifications.region') }}
                         <input type="text" name="region" id="region" placeholder="e.g. NYC" />
                     </label>
-                    <label>Group
+                    <label>{{ \App\Utils\UIStrings::t('notifications.group') }}
                         <input type="text" name="group" id="group" placeholder="e.g. vip" />
                     </label>
-                    <label>Custom Topic
+                    <label>{{ \App\Utils\UIStrings::t('notifications.custom_topic') }}
                         <input type="text" name="topic" id="topic" placeholder="custom_topic" />
                     </label>
                 </div>
-                <small style="color:#6b7280;display:block;margin-top:6px;">Messages will be sent to all provided topics.</small>
+                <small style="color:#6b7280;display:block;margin-top:6px;">{{ \App\Utils\UIStrings::t('notifications.topics_hint') }}</small>
             </div>
         </div>
 
         <div style="display:flex;gap:8px;">
-            <button type="submit" id="sendBtn">Send Notification</button>
+            <button type="submit" id="sendBtn">{{ \App\Utils\UIStrings::t('notifications.send') }}</button>
         </div>
     </div>
 

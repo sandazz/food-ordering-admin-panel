@@ -1,5 +1,5 @@
 @extends('layouts.admin')
 @section('content')
-<h2>System Settings</h2>
-<p>Payment, delivery, localization, and GDPR tools go here.</p>
+<h2>{{ \App\Utils\UIStrings::t('settings.title') }}</h2>
+<p>{{ \App\Utils\UIStrings::t('settings.description') }}</p>
 @endsection
