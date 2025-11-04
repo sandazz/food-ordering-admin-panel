@@ -42,6 +42,10 @@ class StaffController extends Controller
             foreach ($docs as $doc) {
                 $id = Str::afterLast($doc['name'], '/');
                 $f = $doc['fields'] ?? [];
+                // If a branch admin is logged in, do not list other branch_admin accounts
+                if (session('role') === 'branch_admin' && (($f['role']['stringValue'] ?? '') === 'branch_admin')) {
+                    continue;
+                }
                 $staff[] = [
                     'id' => $id,
                     'name' => $f['name']['stringValue'] ?? '',
@@ -68,6 +72,9 @@ class StaffController extends Controller
             foreach ($docs as $doc) {
                 $id = Str::afterLast($doc['name'], '/');
                 $f = $doc['fields'] ?? [];
+                if (session('role') === 'branch_admin' && (($f['role']['stringValue'] ?? '') === 'branch_admin')) {
+                    continue;
+                }
                 $staff[] = [
                     'id' => $id,
                     'name' => $f['name']['stringValue'] ?? '',
@@ -92,6 +99,10 @@ class StaffController extends Controller
     public function create(Request $request)
     {
         $roles = ['branch_admin','cashier'];
+        if (session('role') === 'branch_admin') {
+            // Branch admins cannot create other branch admins
+            $roles = ['cashier'];
+        }
 
         if (session('role') === 'admin') {
             // Super admin: show restaurant + branch selectors on the form
@@ -179,6 +190,11 @@ class StaffController extends Controller
             $baseRules['branchId'] = 'required|string';
         }
         $data = $request->validate($baseRules);
+
+        // Extra guard: branch admin cannot create another branch admin
+        if (session('role') === 'branch_admin' && ($request->input('role') === 'branch_admin')) {
+            return back()->withErrors(['role' => 'Branch admin cannot create another branch admin.'])->withInput();
+        }
 
         if (session('role') === 'admin') {
             // Handle Restaurant Admin creation path

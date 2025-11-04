@@ -290,9 +290,14 @@ class MenuController extends Controller
         $cf = $catDoc['fields'] ?? [];
         if (empty($cf)) { return redirect()->route('menu.index')->with('status', 'Source category not found'); }
         $catPayload = [
-            'name' => $cf['name']['stringValue'] ?? '',
-            'description' => $cf['description']['stringValue'] ?? '',
+            'name' => $cf['name']['stringValue'] ?? ($cf['name_en']['stringValue'] ?? ''),
+            'name_en' => $cf['name_en']['stringValue'] ?? ($cf['name']['stringValue'] ?? ''),
+            'name_fi' => $cf['name_fi']['stringValue'] ?? '',
+            'description' => $cf['description']['stringValue'] ?? ($cf['description_en']['stringValue'] ?? ''),
+            'description_en' => $cf['description_en']['stringValue'] ?? ($cf['description']['stringValue'] ?? ''),
+            'description_fi' => $cf['description_fi']['stringValue'] ?? '',
             'displayOrder' => (int) ($cf['displayOrder']['integerValue'] ?? 0),
+            'imageUrl' => $cf['imageUrl']['stringValue'] ?? '',
         ];
         // Load items from source
         $itemsResp = $firebase->getCollection($srcBase . '/items');
@@ -301,15 +306,44 @@ class MenuController extends Controller
         foreach ($itemDocs as $doc) {
             $iid = Str::afterLast($doc['name'], '/');
             $f = $doc['fields'] ?? [];
+            // Load sizes and bases subcollections for this item
+            $sizesCol = $firebase->getCollection($srcBase . "/items/{$iid}/sizes");
+            $basesCol = $firebase->getCollection($srcBase . "/items/{$iid}/bases");
+            $sizes = [];
+            foreach (($sizesCol['documents'] ?? []) as $sd) {
+                $sid = Str::afterLast($sd['name'], '/');
+                $sf = $sd['fields'] ?? [];
+                $sizes[] = [
+                    'id' => $sid,
+                    'name' => $sf['name']['stringValue'] ?? $sid,
+                    'price' => isset($sf['price']['doubleValue']) ? (float)$sf['price']['doubleValue'] : (float)($sf['price']['integerValue'] ?? 0),
+                ];
+            }
+            $bases = [];
+            foreach (($basesCol['documents'] ?? []) as $bd) {
+                $bid = Str::afterLast($bd['name'], '/');
+                $bf = $bd['fields'] ?? [];
+                $bases[] = [
+                    'id' => $bid,
+                    'name' => $bf['name']['stringValue'] ?? $bid,
+                    'price' => isset($bf['price']['doubleValue']) ? (float)$bf['price']['doubleValue'] : (float)($bf['price']['integerValue'] ?? 0),
+                ];
+            }
             $items[] = [
                 'id' => $iid,
                 'payload' => [
-                    'name' => $f['name']['stringValue'] ?? '',
-                    'description' => $f['description']['stringValue'] ?? '',
+                    'name' => $f['name']['stringValue'] ?? ($f['name_en']['stringValue'] ?? ''),
+                    'name_en' => $f['name_en']['stringValue'] ?? ($f['name']['stringValue'] ?? ''),
+                    'name_fi' => $f['name_fi']['stringValue'] ?? '',
+                    'description' => $f['description']['stringValue'] ?? ($f['description_en']['stringValue'] ?? ''),
+                    'description_en' => $f['description_en']['stringValue'] ?? ($f['description']['stringValue'] ?? ''),
+                    'description_fi' => $f['description_fi']['stringValue'] ?? '',
                     'price' => isset($f['price']['doubleValue']) ? (float)$f['price']['doubleValue'] : (float)($f['price']['integerValue'] ?? 0),
                     'available' => (bool)($f['available']['booleanValue'] ?? true),
                     'imageUrl' => $f['imageUrl']['stringValue'] ?? '',
                 ],
+                'sizes' => $sizes,
+                'bases' => $bases,
             ];
         }
 
