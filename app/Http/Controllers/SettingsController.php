@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use App\Services\FirebaseService;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\File;
 
 class SettingsController extends Controller
 {
@@ -206,15 +207,20 @@ class SettingsController extends Controller
             'name' => 'required|string|max:150',
             'description' => 'nullable|string|max:1000',
             'logoUrl' => 'nullable|url',
+            'logo' => 'nullable|image|max:4096',
             'taxRate' => 'nullable|numeric|min:0',
             'serviceCharge' => 'nullable|numeric|min:0',
             'status' => 'required|string',
         ]);
         $id = 'resto_' . Str::random(6);
+        $logoUrl = $data['logoUrl'] ?? '';
+        if ($request->hasFile('logo')) {
+            $logoUrl = $this->storePublicUpload($request->file('logo'), 'restaurants');
+        }
         $firebase->createDocument('restaurants', [
             'name' => $data['name'],
             'description' => $data['description'] ?? '',
-            'logoUrl' => $data['logoUrl'] ?? '',
+            'logoUrl' => $logoUrl,
             'taxRate' => (float)($data['taxRate'] ?? 0),
             'serviceCharge' => (float)($data['serviceCharge'] ?? 0),
             'status' => $data['status'],
@@ -244,14 +250,19 @@ class SettingsController extends Controller
             'name' => 'required|string|max:150',
             'description' => 'nullable|string|max:1000',
             'logoUrl' => 'nullable|url',
+            'logo' => 'nullable|image|max:4096',
             'taxRate' => 'nullable|numeric|min:0',
             'serviceCharge' => 'nullable|numeric|min:0',
             'status' => 'required|string',
         ]);
+        $logoUrl = $data['logoUrl'] ?? '';
+        if ($request->hasFile('logo')) {
+            $logoUrl = $this->storePublicUpload($request->file('logo'), 'restaurants');
+        }
         $firebase->updateDocument('restaurants', $restaurantId, [
             'name' => $data['name'],
             'description' => $data['description'] ?? '',
-            'logoUrl' => $data['logoUrl'] ?? '',
+            'logoUrl' => $logoUrl,
             'taxRate' => (float)($data['taxRate'] ?? 0), 
             'serviceCharge' => (float)($data['serviceCharge'] ?? 0),
             'status' => $data['status'],
@@ -288,12 +299,18 @@ class SettingsController extends Controller
             'state' => 'nullable|string|max:120',
             'zipCode' => 'nullable|string|max:30',
             'country' => 'nullable|string|max:120',
+            'image' => 'nullable|image|max:4096',
         ]);
         $branchId = 'branch_' . Str::random(6);
+        $imageUrl = '';
+        if ($request->hasFile('image')) {
+            $imageUrl = $this->storePublicUpload($request->file('image'), 'branches');
+        }
         $firebase->createDocument("restaurants/{$restaurantId}/branches", [
             'name' => $data['name'],
             'contact' => $data['contact'] ?? '',
             'status' => $data['status'],
+            'imageUrl' => $imageUrl,
             'address' => [
                 'street' => $data['street'] ?? '',
                 'city' => $data['city'] ?? '',
@@ -314,6 +331,7 @@ class SettingsController extends Controller
             'name' => $f['name']['stringValue'] ?? '',
             'contact' => $f['contact']['stringValue'] ?? '',
             'status' => $f['status']['stringValue'] ?? 'open',
+            'imageUrl' => $f['imageUrl']['stringValue'] ?? '',
             'address' => [
                 'street' => $f['address']['mapValue']['fields']['street']['stringValue'] ?? '',
                 'city' => $f['address']['mapValue']['fields']['city']['stringValue'] ?? '',
@@ -336,11 +354,17 @@ class SettingsController extends Controller
             'state' => 'nullable|string|max:120',
             'zipCode' => 'nullable|string|max:30',
             'country' => 'nullable|string|max:120',
+            'image' => 'nullable|image|max:4096',
         ]);
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $imageUrl = $this->storePublicUpload($request->file('image'), 'branches');
+        }
         $firebase->updateDocument("restaurants/{$restaurantId}/branches", $branchId, [
             'name' => $data['name'],
             'contact' => $data['contact'] ?? '',
             'status' => $data['status'],
+            ...(isset($imageUrl) && $imageUrl !== null ? ['imageUrl' => $imageUrl] : []),
             'address' => [
                 'street' => $data['street'] ?? '',
                 'city' => $data['city'] ?? '',
@@ -350,6 +374,18 @@ class SettingsController extends Controller
             ],
         ]);
         return redirect()->route('settings.branches', $restaurantId)->with('status', 'Branch updated');
+    }
+
+    private function storePublicUpload($file, string $subdir): string
+    {
+        $dest = public_path('uploads/' . trim($subdir, '/'));
+        if (!File::exists($dest)) { File::makeDirectory($dest, 0755, true); }
+        $ext = $file->getClientOriginalExtension() ?: 'jpg';
+        $base = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $slug = Str::slug(substr($base, 0, 50));
+        $filename = $slug . '-' . date('YmdHis') . '-' . Str::random(4) . '.' . $ext;
+        $file->move($dest, $filename);
+        return asset('uploads/' . trim($subdir, '/') . '/' . $filename);
     }
 
     public function destroyBranch(FirebaseService $firebase, string $restaurantId, string $branchId)

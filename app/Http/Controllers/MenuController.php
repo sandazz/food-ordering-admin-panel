@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Services\FirebaseService;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\File;
 
 class MenuController extends Controller
 {
@@ -12,6 +13,18 @@ class MenuController extends Controller
         $restaurantId = $request->session()->get('restaurantId');
         $branchId = $request->session()->get('branchId');
         return [$restaurantId, $branchId];
+    }
+
+    private function storePublicUpload($file, string $subdir): string
+    {
+        $dest = public_path('uploads/' . trim($subdir, '/'));
+        if (!File::exists($dest)) { File::makeDirectory($dest, 0755, true); }
+        $ext = $file->getClientOriginalExtension() ?: 'jpg';
+        $base = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $slug = Str::slug(substr($base, 0, 50));
+        $filename = $slug . '-' . date('YmdHis') . '-' . Str::random(4) . '.' . $ext;
+        $file->move($dest, $filename);
+        return asset('uploads/' . trim($subdir, '/') . '/' . $filename);
     }
 
     public function index(Request $request, FirebaseService $firebase)
@@ -143,6 +156,8 @@ class MenuController extends Controller
             'description_en' => 'nullable|string|max:500',
             'description_fi' => 'nullable|string|max:500',
             'displayOrder' => 'nullable|integer|min:0',
+            'imageUrl' => 'nullable|url',
+            'image' => 'nullable|image|max:4096',
         ]);
         [$restaurantId, $branchId] = $this->ctx($request);
         if (!$restaurantId || !$branchId) {
@@ -150,6 +165,10 @@ class MenuController extends Controller
         }
         $basePath = "restaurants/{$restaurantId}/branches/{$branchId}/menus";
         $documentId = 'cat_' . Str::random(6);
+        $imageUrl = $data['imageUrl'] ?? '';
+        if ($request->hasFile('image')) {
+            $imageUrl = $this->storePublicUpload($request->file('image'), 'categories');
+        }
         $firebase->createDocument($basePath, [
             'name' => $data['name_en'],
             'name_en' => $data['name_en'],
@@ -158,6 +177,7 @@ class MenuController extends Controller
             'description_en' => $data['description_en'] ?? '',
             'description_fi' => $data['description_fi'] ?? '',
             'displayOrder' => (int) ($data['displayOrder'] ?? 0),
+            'imageUrl' => $imageUrl,
         ], $documentId);
 
         return redirect()->route('menu.index')->with('status', 'Category created');
@@ -180,6 +200,7 @@ class MenuController extends Controller
             'description_en' => $f['description_en']['stringValue'] ?? ($f['description']['stringValue'] ?? ''),
             'description_fi' => $f['description_fi']['stringValue'] ?? '',
             'displayOrder' => (int) ($f['displayOrder']['integerValue'] ?? 0),
+            'imageUrl' => $f['imageUrl']['stringValue'] ?? '',
         ];
         return view('admin.menu.category-edit', compact('category'));
     }
@@ -192,10 +213,16 @@ class MenuController extends Controller
             'description_en' => 'nullable|string|max:500',
             'description_fi' => 'nullable|string|max:500',
             'displayOrder' => 'nullable|integer|min:0',
+            'imageUrl' => 'nullable|url',
+            'image' => 'nullable|image|max:4096',
         ]);
         [$restaurantId, $branchId] = $this->ctx($request);
         if (!$restaurantId || !$branchId) {
             return redirect()->route('settings.context')->with('status', 'Select restaurant and branch first.');
+        }
+        $imageUrl = $data['imageUrl'] ?? '';
+        if ($request->hasFile('image')) {
+            $imageUrl = $this->storePublicUpload($request->file('image'), 'categories');
         }
         $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus", $categoryId, [
             'name' => $data['name_en'],
@@ -205,6 +232,7 @@ class MenuController extends Controller
             'description_en' => $data['description_en'] ?? '',
             'description_fi' => $data['description_fi'] ?? '',
             'displayOrder' => (int) ($data['displayOrder'] ?? 0),
+            'imageUrl' => $imageUrl,
         ]);
         return redirect()->route('menu.index')->with('status', 'Category updated');
     }
@@ -352,6 +380,7 @@ class MenuController extends Controller
             'price' => 'nullable|numeric|min:0',
             'available' => 'nullable|boolean',
             'imageUrl' => 'nullable|url',
+            'image' => 'nullable|image|max:4096',
             'sizes' => 'nullable|array',
             'sizes_price' => 'nullable|array',
             'bases' => 'nullable|array',
@@ -389,6 +418,10 @@ class MenuController extends Controller
         }
         $finalPrice = isset($data['price']) && $data['price']!==null && $data['price']!=='' ? (float)$data['price'] : 0.0;
         $itemId = 'item_' . Str::random(6);
+        $imageUrl = $data['imageUrl'] ?? '';
+        if ($request->hasFile('image')) {
+            $imageUrl = $this->storePublicUpload($request->file('image'), 'items');
+        }
         $payload = [
             'name' => $data['name_en'],
             'name_en' => $data['name_en'],
@@ -398,7 +431,7 @@ class MenuController extends Controller
             'description_fi' => $data['description_fi'] ?? '',
             'price' => $finalPrice,
             'available' => (bool) ($data['available'] ?? true),
-            'imageUrl' => $data['imageUrl'] ?? '',
+            'imageUrl' => $imageUrl,
         ];
         // Create item document
         $firebase->createDocument($basePath, $payload, $itemId);
@@ -494,11 +527,14 @@ class MenuController extends Controller
     public function updateItem(Request $request, FirebaseService $firebase, string $categoryId, string $itemId)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:120',
-            'description' => 'nullable|string|max:500',
+            'name_en' => 'required|string|max:120',
+            'name_fi' => 'required|string|max:120',
+            'description_en' => 'nullable|string|max:500',
+            'description_fi' => 'nullable|string|max:500',
             'price' => 'nullable|numeric|min:0',
             'available' => 'nullable|boolean',
             'imageUrl' => 'nullable|url',
+            'image' => 'nullable|image|max:4096',
             'sizeId' => 'nullable|string',
             'sizePrice' => 'nullable|numeric|min:0',
             'baseId' => 'nullable|string',
@@ -534,12 +570,20 @@ class MenuController extends Controller
             $sum += $p;
         }
         $finalPrice = isset($data['price']) && $data['price']!==null && $data['price']!=='' ? (float)$data['price'] : 0.0;
+        $imageUrl = $data['imageUrl'] ?? '';
+        if ($request->hasFile('image')) {
+            $imageUrl = $this->storePublicUpload($request->file('image'), 'items');
+        }
         $payload = [
-            'name' => $data['name'],
-            'description' => $data['description'] ?? '',
+            'name' => $data['name_en'],
+            'name_en' => $data['name_en'],
+            'name_fi' => $data['name_fi'],
+            'description' => $data['description_en'] ?? '',
+            'description_en' => $data['description_en'] ?? '',
+            'description_fi' => $data['description_fi'] ?? '',
             'price' => $finalPrice,
             'available' => (bool) ($data['available'] ?? true),
-            'imageUrl' => $data['imageUrl'] ?? '',
+            'imageUrl' => $imageUrl,
         ];
         $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId, $payload);
         // Replace subcollections: delete existing then create new

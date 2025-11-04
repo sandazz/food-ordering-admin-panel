@@ -1,13 +1,38 @@
 @extends('layouts.admin')
 @section('content')
 <h2>Edit Branch</h2>
-<form method="POST" action="{{ route('settings.branches.update', [$restaurantId, $branch['id']]) }}" class="mt-3">
+<form method="POST" action="{{ route('settings.branches.update', [$restaurantId, $branch['id']]) }}" class="mt-3" enctype="multipart/form-data">
   @csrf
   @method('PUT')
   <div class="mb-3">
     <label class="form-label">Name</label>
     <input type="text" name="name" class="form-control" value="{{ $branch['name'] }}" required>
   </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Upload Image</label>
+      <input type="file" name="image" id="branchImageInput" class="form-control" accept="image/*">
+      <div class="mt-2">
+        <img id="branchImagePreview" src="{{ $branch['imageUrl'] ?? '' }}" alt="Branch Image" style="max-height:80px;{{ empty($branch['imageUrl']) ? 'display:none;' : '' }}"/>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function(){
+      const inp = document.getElementById('branchImageInput');
+      const img = document.getElementById('branchImagePreview');
+      function bind(){
+        if(!(inp && img)) return;
+        inp.addEventListener('change', function(){
+          const f = this.files && this.files[0];
+          if(f){ img.src = URL.createObjectURL(f); img.style.display=''; }
+        });
+      }
+      if(document.readyState === 'loading'){
+        document.addEventListener('DOMContentLoaded', bind);
+      } else { bind(); }
+    })();
+  </script>
   <div class="row">
     <div class="col-md-6 mb-3">
       <label class="form-label">Contact</label>
