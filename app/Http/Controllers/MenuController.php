@@ -40,13 +40,16 @@ class MenuController extends Controller
             $resp = $firebase->getCollection($basePath);
             $docs = $resp['documents'] ?? [];
             $categories = [];
+            $lang = $request->session()->get('ui_lang', 'en');
             foreach ($docs as $doc) {
                 $id = Str::afterLast($doc['name'], '/');
                 $fields = $doc['fields'] ?? [];
                 $categories[$id] = [
                     'id' => $id,
-                    'name' => $fields['name']['stringValue'] ?? '',
-                    'description' => $fields['description']['stringValue'] ?? '',
+                    'name' => ($lang==='fi' ? ($fields['name_fi']['stringValue'] ?? null) : ($fields['name_en']['stringValue'] ?? null))
+                              ?? ($fields['name']['stringValue'] ?? ''),
+                    'description' => ($lang==='fi' ? ($fields['description_fi']['stringValue'] ?? null) : ($fields['description_en']['stringValue'] ?? null))
+                                     ?? ($fields['description']['stringValue'] ?? ''),
                     'displayOrder' => (int) ($fields['displayOrder']['integerValue'] ?? 0),
                 ];
                 $itemsResp = $firebase->getCollection($basePath . "/{$id}/items");
@@ -57,7 +60,8 @@ class MenuController extends Controller
                     $f = $i['fields'] ?? [];
                     $items[] = [
                         'id' => $iid,
-                        'name' => $f['name']['stringValue'] ?? '',
+                        'name' => ($lang==='fi' ? ($f['name_fi']['stringValue'] ?? null) : ($f['name_en']['stringValue'] ?? null))
+                                  ?? ($f['name']['stringValue'] ?? ''),
                         'price' => isset($f['price']['doubleValue']) ? (float)$f['price']['doubleValue'] : (float)($f['price']['integerValue'] ?? 0),
                         'available' => (bool)($f['available']['booleanValue'] ?? true),
                     ];
@@ -74,6 +78,7 @@ class MenuController extends Controller
 
         // All-branches mode: aggregate per branch
         $branchMenus = [];
+        $lang = $request->session()->get('ui_lang', 'en');
         foreach ($branches as $b) {
             $bId = $b['id'];
             $basePath = "restaurants/{$restaurantId}/branches/{$bId}/menus";
@@ -85,8 +90,10 @@ class MenuController extends Controller
                 $fields = $doc['fields'] ?? [];
                 $categories[$id] = [
                     'id' => $id,
-                    'name' => $fields['name']['stringValue'] ?? '',
-                    'description' => $fields['description']['stringValue'] ?? '',
+                    'name' => ($lang==='fi' ? ($fields['name_fi']['stringValue'] ?? null) : ($fields['name_en']['stringValue'] ?? null))
+                              ?? ($fields['name']['stringValue'] ?? ''),
+                    'description' => ($lang==='fi' ? ($fields['description_fi']['stringValue'] ?? null) : ($fields['description_en']['stringValue'] ?? null))
+                                     ?? ($fields['description']['stringValue'] ?? ''),
                     'displayOrder' => (int) ($fields['displayOrder']['integerValue'] ?? 0),
                 ];
                 $itemsResp = $firebase->getCollection($basePath . "/{$id}/items");
@@ -97,7 +104,8 @@ class MenuController extends Controller
                     $f = $i['fields'] ?? [];
                     $items[] = [
                         'id' => $iid,
-                        'name' => $f['name']['stringValue'] ?? '',
+                        'name' => ($lang==='fi' ? ($f['name_fi']['stringValue'] ?? null) : ($f['name_en']['stringValue'] ?? null))
+                                  ?? ($f['name']['stringValue'] ?? ''),
                         'price' => isset($f['price']['doubleValue']) ? (float)$f['price']['doubleValue'] : (float)($f['price']['integerValue'] ?? 0),
                         'available' => (bool)($f['available']['booleanValue'] ?? true),
                     ];
@@ -130,8 +138,10 @@ class MenuController extends Controller
     public function storeCategory(Request $request, FirebaseService $firebase)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:120',
-            'description' => 'nullable|string|max:500',
+            'name_en' => 'required|string|max:120',
+            'name_fi' => 'required|string|max:120',
+            'description_en' => 'nullable|string|max:500',
+            'description_fi' => 'nullable|string|max:500',
             'displayOrder' => 'nullable|integer|min:0',
         ]);
         [$restaurantId, $branchId] = $this->ctx($request);
@@ -141,8 +151,12 @@ class MenuController extends Controller
         $basePath = "restaurants/{$restaurantId}/branches/{$branchId}/menus";
         $documentId = 'cat_' . Str::random(6);
         $firebase->createDocument($basePath, [
-            'name' => $data['name'],
-            'description' => $data['description'] ?? '',
+            'name' => $data['name_en'],
+            'name_en' => $data['name_en'],
+            'name_fi' => $data['name_fi'],
+            'description' => $data['description_en'] ?? '',
+            'description_en' => $data['description_en'] ?? '',
+            'description_fi' => $data['description_fi'] ?? '',
             'displayOrder' => (int) ($data['displayOrder'] ?? 0),
         ], $documentId);
 
@@ -159,8 +173,12 @@ class MenuController extends Controller
         $f = $doc['fields'] ?? [];
         $category = [
             'id' => $categoryId,
-            'name' => $f['name']['stringValue'] ?? '',
-            'description' => $f['description']['stringValue'] ?? '',
+            'name' => $f['name_en']['stringValue'] ?? ($f['name']['stringValue'] ?? ''),
+            'name_en' => $f['name_en']['stringValue'] ?? ($f['name']['stringValue'] ?? ''),
+            'name_fi' => $f['name_fi']['stringValue'] ?? '',
+            'description' => $f['description_en']['stringValue'] ?? ($f['description']['stringValue'] ?? ''),
+            'description_en' => $f['description_en']['stringValue'] ?? ($f['description']['stringValue'] ?? ''),
+            'description_fi' => $f['description_fi']['stringValue'] ?? '',
             'displayOrder' => (int) ($f['displayOrder']['integerValue'] ?? 0),
         ];
         return view('admin.menu.category-edit', compact('category'));
@@ -169,8 +187,10 @@ class MenuController extends Controller
     public function updateCategory(Request $request, FirebaseService $firebase, string $categoryId)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:120',
-            'description' => 'nullable|string|max:500',
+            'name_en' => 'required|string|max:120',
+            'name_fi' => 'required|string|max:120',
+            'description_en' => 'nullable|string|max:500',
+            'description_fi' => 'nullable|string|max:500',
             'displayOrder' => 'nullable|integer|min:0',
         ]);
         [$restaurantId, $branchId] = $this->ctx($request);
@@ -178,8 +198,12 @@ class MenuController extends Controller
             return redirect()->route('settings.context')->with('status', 'Select restaurant and branch first.');
         }
         $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus", $categoryId, [
-            'name' => $data['name'],
-            'description' => $data['description'] ?? '',
+            'name' => $data['name_en'],
+            'name_en' => $data['name_en'],
+            'name_fi' => $data['name_fi'],
+            'description' => $data['description_en'] ?? '',
+            'description_en' => $data['description_en'] ?? '',
+            'description_fi' => $data['description_fi'] ?? '',
             'displayOrder' => (int) ($data['displayOrder'] ?? 0),
         ]);
         return redirect()->route('menu.index')->with('status', 'Category updated');
@@ -279,28 +303,118 @@ class MenuController extends Controller
         if (!$restaurantId || !$branchId) {
             return redirect()->route('settings.context')->with('status', 'Select restaurant and branch first.');
         }
-        return view('admin.menu.item-create', compact('categoryId'));
+        // Load sizes and bases (prefer branch; fallback to restaurant defaults if branch empty)
+        $sizes = [];
+        $bases = [];
+        $firebase = app(\App\Services\FirebaseService::class);
+        $sresp = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/sizes");
+        $sdocs = $sresp['documents'] ?? [];
+        if (empty($sdocs)) {
+            $sresp = $firebase->getCollection("restaurants/{$restaurantId}/sizes");
+            $sdocs = $sresp['documents'] ?? [];
+        }
+        foreach ($sdocs as $doc) {
+            $id = Str::afterLast($doc['name'], '/');
+            $f = $doc['fields'] ?? [];
+            $sizes[] = [
+                'id' => $id,
+                'name' => ($request->session()->get('ui_lang','en')==='fi' ? ($f['name_fi']['stringValue'] ?? null) : ($f['name_en']['stringValue'] ?? null))
+                          ?? ($f['name']['stringValue'] ?? $id),
+                'price' => isset($f['price']['doubleValue']) ? (float)$f['price']['doubleValue'] : (float)($f['price']['integerValue'] ?? 0),
+            ];
+        }
+        $bresp = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/bases");
+        $bdocs = $bresp['documents'] ?? [];
+        if (empty($bdocs)) {
+            $bresp = $firebase->getCollection("restaurants/{$restaurantId}/bases");
+            $bdocs = $bresp['documents'] ?? [];
+        }
+        foreach ($bdocs as $doc) {
+            $id = Str::afterLast($doc['name'], '/');
+            $f = $doc['fields'] ?? [];
+            $bases[] = [
+                'id' => $id,
+                'name' => ($request->session()->get('ui_lang','en')==='fi' ? ($f['name_fi']['stringValue'] ?? null) : ($f['name_en']['stringValue'] ?? null))
+                          ?? ($f['name']['stringValue'] ?? $id),
+                'price' => isset($f['price']['doubleValue']) ? (float)$f['price']['doubleValue'] : (float)($f['price']['integerValue'] ?? 0),
+            ];
+        }
+        return view('admin.menu.item-create', compact('categoryId','sizes','bases'));
     }
 
     public function storeItem(Request $request, FirebaseService $firebase, string $categoryId)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:120',
-            'description' => 'nullable|string|max:500',
-            'price' => 'required|numeric|min:0',
+            'name_en' => 'required|string|max:120',
+            'name_fi' => 'required|string|max:120',
+            'description_en' => 'nullable|string|max:500',
+            'description_fi' => 'nullable|string|max:500',
+            'price' => 'nullable|numeric|min:0',
             'available' => 'nullable|boolean',
             'imageUrl' => 'nullable|url',
+            'sizes' => 'nullable|array',
+            'sizes_price' => 'nullable|array',
+            'bases' => 'nullable|array',
+            'bases_price' => 'nullable|array',
         ]);
         [$restaurantId, $branchId] = $this->ctx($request);
         $basePath = "restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items";
+        // Resolve selected sizes and bases (multiple)
+        $selectedSizes = array_keys($request->input('sizes', []));
+        $sizesPriceMap = $request->input('sizes_price', []);
+        $selectedBases = array_keys($request->input('bases', []));
+        $basesPriceMap = $request->input('bases_price', []);
+        $sizesOptions = [];
+        $basesOptions = [];
+        $sum = 0.0;
+        foreach ($selectedSizes as $sid) {
+            $sd = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/sizes", $sid);
+            if (empty($sd['fields'])) { $sd = $firebase->getDocument("restaurants/{$restaurantId}/sizes", $sid); }
+            $sf = $sd['fields'] ?? [];
+            $name = $sf['name']['stringValue'] ?? $sid;
+            $defaultPrice = isset($sf['price']['doubleValue']) ? (float)$sf['price']['doubleValue'] : (float)($sf['price']['integerValue'] ?? 0);
+            $p = isset($sizesPriceMap[$sid]) && $sizesPriceMap[$sid] !== '' ? (float)$sizesPriceMap[$sid] : $defaultPrice;
+            $sizesOptions[] = ['id'=>$sid,'name'=>$name,'price'=>$p];
+            $sum += $p;
+        }
+        foreach ($selectedBases as $bid) {
+            $bd = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/bases", $bid);
+            if (empty($bd['fields'])) { $bd = $firebase->getDocument("restaurants/{$restaurantId}/bases", $bid); }
+            $bf = $bd['fields'] ?? [];
+            $name = $bf['name']['stringValue'] ?? $bid;
+            $defaultPrice = isset($bf['price']['doubleValue']) ? (float)$bf['price']['doubleValue'] : (float)($bf['price']['integerValue'] ?? 0);
+            $p = isset($basesPriceMap[$bid]) && $basesPriceMap[$bid] !== '' ? (float)$basesPriceMap[$bid] : $defaultPrice;
+            $basesOptions[] = ['id'=>$bid,'name'=>$name,'price'=>$p];
+            $sum += $p;
+        }
+        $finalPrice = isset($data['price']) && $data['price']!==null && $data['price']!=='' ? (float)$data['price'] : 0.0;
         $itemId = 'item_' . Str::random(6);
-        $firebase->createDocument($basePath, [
-            'name' => $data['name'],
-            'description' => $data['description'] ?? '',
-            'price' => (float) $data['price'],
+        $payload = [
+            'name' => $data['name_en'],
+            'name_en' => $data['name_en'],
+            'name_fi' => $data['name_fi'],
+            'description' => $data['description_en'] ?? '',
+            'description_en' => $data['description_en'] ?? '',
+            'description_fi' => $data['description_fi'] ?? '',
+            'price' => $finalPrice,
             'available' => (bool) ($data['available'] ?? true),
             'imageUrl' => $data['imageUrl'] ?? '',
-        ], $itemId);
+        ];
+        // Create item document
+        $firebase->createDocument($basePath, $payload, $itemId);
+        // Create subcollections for sizes and bases
+        foreach ($sizesOptions as $opt) {
+            $firebase->createDocument($basePath . "/{$itemId}/sizes", [
+                'name' => $opt['name'],
+                'price' => (float)$opt['price'],
+            ], $opt['id']);
+        }
+        foreach ($basesOptions as $opt) {
+            $firebase->createDocument($basePath . "/{$itemId}/bases", [
+                'name' => $opt['name'],
+                'price' => (float)$opt['price'],
+            ], $opt['id']);
+        }
         return redirect()->route('menu.index')->with('status', 'Item created');
     }
 
@@ -312,13 +426,69 @@ class MenuController extends Controller
         $item = [
             'id' => $itemId,
             'categoryId' => $categoryId,
-            'name' => $f['name']['stringValue'] ?? '',
-            'description' => $f['description']['stringValue'] ?? '',
+            'name' => $f['name_en']['stringValue'] ?? ($f['name']['stringValue'] ?? ''),
+            'name_en' => $f['name_en']['stringValue'] ?? ($f['name']['stringValue'] ?? ''),
+            'name_fi' => $f['name_fi']['stringValue'] ?? '',
+            'description' => $f['description_en']['stringValue'] ?? ($f['description']['stringValue'] ?? ''),
+            'description_en' => $f['description_en']['stringValue'] ?? ($f['description']['stringValue'] ?? ''),
+            'description_fi' => $f['description_fi']['stringValue'] ?? '',
             'price' => isset($f['price']['doubleValue']) ? (float)$f['price']['doubleValue'] : (float)($f['price']['integerValue'] ?? 0),
             'available' => (bool) ($f['available']['booleanValue'] ?? true),
             'imageUrl' => $f['imageUrl']['stringValue'] ?? '',
         ];
-        return view('admin.menu.item-edit', compact('item'));
+        // Load sizes/bases subcollections for editing
+        $item['sizesOptions'] = [];
+        $scol = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/sizes");
+        foreach (($scol['documents'] ?? []) as $sd) {
+            $sid = Str::afterLast($sd['name'], '/');
+            $sf = $sd['fields'] ?? [];
+            $item['sizesOptions'][] = [
+                'id' => $sid,
+                'name' => $sf['name']['stringValue'] ?? $sid,
+                'price' => isset($sf['price']['doubleValue']) ? (float)$sf['price']['doubleValue'] : (float)($sf['price']['integerValue'] ?? 0),
+            ];
+        }
+        $item['basesOptions'] = [];
+        $bcol = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/bases");
+        foreach (($bcol['documents'] ?? []) as $bd) {
+            $bid = Str::afterLast($bd['name'], '/');
+            $bf = $bd['fields'] ?? [];
+            $item['basesOptions'][] = [
+                'id' => $bid,
+                'name' => $bf['name']['stringValue'] ?? $bid,
+                'price' => isset($bf['price']['doubleValue']) ? (float)$bf['price']['doubleValue'] : (float)($bf['price']['integerValue'] ?? 0),
+            ];
+        }
+        // Load sizes/bases for editing
+        $sizes = [];
+        $bases = [];
+        $sresp = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/sizes");
+        $sdocs = $sresp['documents'] ?? [];
+        if (empty($sdocs)) { $sresp = $firebase->getCollection("restaurants/{$restaurantId}/sizes"); $sdocs = $sresp['documents'] ?? []; }
+        foreach ($sdocs as $doc2) {
+            $id = Str::afterLast($doc2['name'], '/');
+            $ff = $doc2['fields'] ?? [];
+            $sizes[] = [
+                'id' => $id,
+                'name' => ($request->session()->get('ui_lang','en')==='fi' ? ($ff['name_fi']['stringValue'] ?? null) : ($ff['name_en']['stringValue'] ?? null))
+                          ?? ($ff['name']['stringValue'] ?? $id),
+                'price' => isset($ff['price']['doubleValue']) ? (float)$ff['price']['doubleValue'] : (float)($ff['price']['integerValue'] ?? 0),
+            ];
+        }
+        $bresp = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/bases");
+        $bdocs = $bresp['documents'] ?? [];
+        if (empty($bdocs)) { $bresp = $firebase->getCollection("restaurants/{$restaurantId}/bases"); $bdocs = $bresp['documents'] ?? []; }
+        foreach ($bdocs as $doc3) {
+            $id = Str::afterLast($doc3['name'], '/');
+            $ff = $doc3['fields'] ?? [];
+            $bases[] = [
+                'id' => $id,
+                'name' => ($request->session()->get('ui_lang','en')==='fi' ? ($ff['name_fi']['stringValue'] ?? null) : ($ff['name_en']['stringValue'] ?? null))
+                          ?? ($ff['name']['stringValue'] ?? $id),
+                'price' => isset($ff['price']['doubleValue']) ? (float)$ff['price']['doubleValue'] : (float)($ff['price']['integerValue'] ?? 0),
+            ];
+        }
+        return view('admin.menu.item-edit', compact('item','sizes','bases'));
     }
 
     public function updateItem(Request $request, FirebaseService $firebase, string $categoryId, string $itemId)
@@ -326,18 +496,75 @@ class MenuController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:120',
             'description' => 'nullable|string|max:500',
-            'price' => 'required|numeric|min:0',
+            'price' => 'nullable|numeric|min:0',
             'available' => 'nullable|boolean',
             'imageUrl' => 'nullable|url',
+            'sizeId' => 'nullable|string',
+            'sizePrice' => 'nullable|numeric|min:0',
+            'baseId' => 'nullable|string',
+            'basePrice' => 'nullable|numeric|min:0',
         ]);
         [$restaurantId, $branchId] = $this->ctx($request);
-        $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId, [
+        // Resolve multiple selections and compute price
+        $selectedSizes = array_keys($request->input('sizes', []));
+        $sizesPriceMap = $request->input('sizes_price', []);
+        $selectedBases = array_keys($request->input('bases', []));
+        $basesPriceMap = $request->input('bases_price', []);
+        $sizesOptions = [];
+        $basesOptions = [];
+        $sum = 0.0;
+        foreach ($selectedSizes as $sid) {
+            $sd = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/sizes", $sid);
+            if (empty($sd['fields'])) { $sd = $firebase->getDocument("restaurants/{$restaurantId}/sizes", $sid); }
+            $sf = $sd['fields'] ?? [];
+            $name = $sf['name']['stringValue'] ?? $sid;
+            $defaultPrice = isset($sf['price']['doubleValue']) ? (float)$sf['price']['doubleValue'] : (float)($sf['price']['integerValue'] ?? 0);
+            $p = isset($sizesPriceMap[$sid]) && $sizesPriceMap[$sid] !== '' ? (float)$sizesPriceMap[$sid] : $defaultPrice;
+            $sizesOptions[] = ['id'=>$sid,'name'=>$name,'price'=>$p];
+            $sum += $p;
+        }
+        foreach ($selectedBases as $bid) {
+            $bd = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/bases", $bid);
+            if (empty($bd['fields'])) { $bd = $firebase->getDocument("restaurants/{$restaurantId}/bases", $bid); }
+            $bf = $bd['fields'] ?? [];
+            $name = $bf['name']['stringValue'] ?? $bid;
+            $defaultPrice = isset($bf['price']['doubleValue']) ? (float)$bf['price']['doubleValue'] : (float)($bf['price']['integerValue'] ?? 0);
+            $p = isset($basesPriceMap[$bid]) && $basesPriceMap[$bid] !== '' ? (float)$basesPriceMap[$bid] : $defaultPrice;
+            $basesOptions[] = ['id'=>$bid,'name'=>$name,'price'=>$p];
+            $sum += $p;
+        }
+        $finalPrice = isset($data['price']) && $data['price']!==null && $data['price']!=='' ? (float)$data['price'] : 0.0;
+        $payload = [
             'name' => $data['name'],
             'description' => $data['description'] ?? '',
-            'price' => (float) $data['price'],
+            'price' => $finalPrice,
             'available' => (bool) ($data['available'] ?? true),
             'imageUrl' => $data['imageUrl'] ?? '',
-        ]);
+        ];
+        $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId, $payload);
+        // Replace subcollections: delete existing then create new
+        $existingSizes = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/sizes");
+        foreach (($existingSizes['documents'] ?? []) as $sd) {
+            $sid = Str::afterLast($sd['name'], '/');
+            $firebase->deleteDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/sizes", $sid);
+        }
+        foreach ($sizesOptions as $opt) {
+            $firebase->createDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/sizes", [
+                'name' => $opt['name'],
+                'price' => (float)$opt['price'],
+            ], $opt['id']);
+        }
+        $existingBases = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/bases");
+        foreach (($existingBases['documents'] ?? []) as $bd) {
+            $bid = Str::afterLast($bd['name'], '/');
+            $firebase->deleteDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/bases", $bid);
+        }
+        foreach ($basesOptions as $opt) {
+            $firebase->createDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/bases", [
+                'name' => $opt['name'],
+                'price' => (float)$opt['price'],
+            ], $opt['id']);
+        }
         return redirect()->route('menu.index')->with('status', 'Item updated');
     }
 

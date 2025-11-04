@@ -55,17 +55,34 @@ class AuthController extends Controller
             $userDoc = $firebase->getDocument('users', $uid);
             $fields = $userDoc['fields'] ?? [];
             $role = $fields['role']['stringValue'] ?? 'admin';
+
+            // Branch Admin: lock to restaurant + branch
             if ($role === 'branch_admin') {
-                $ridField = $fields['restaurantId'] ?? [];
-                $bidField = $fields['branchId'] ?? [];
-                $rid = $ridField['stringValue'] ?? null;
-                $bid = $bidField['stringValue'] ?? null;
+                $rid = $fields['restaurantId']['stringValue'] ?? null;
+                $bid = $fields['branchId']['stringValue'] ?? null;
                 if ($rid && $bid) {
                     session(['role' => 'branch_admin', 'restaurantId' => $rid, 'branchId' => $bid]);
                     return redirect()->intended('/admin')->with('status', 'Logged in as Branch Admin');
                 }
             }
-            session(['role' => $role]);
+
+            // Restaurant Admin: lock to restaurant
+            if ($role === 'restaurant_admin') {
+                $rid = $fields['restaurantId']['stringValue'] ?? null;
+                if ($rid) {
+                    session(['role' => 'restaurant_admin', 'restaurantId' => $rid, 'branchId' => null]);
+                    return redirect()->intended('/admin')->with('status', 'Logged in as Restaurant Admin');
+                }
+            }
+
+            // Super Admin: full access
+            if ($role === 'admin') {
+                session(['role' => 'admin', 'restaurantId' => null, 'branchId' => null]);
+                return redirect()->intended('/admin')->with('status', 'Logged in as Super Admin');
+            }
+
+            // Any other role: block access
+            return redirect()->route('login')->withErrors(['auth' => 'Your account role is not permitted to access the admin panel.']);
         }
 
         if (! session('restaurantId')) {

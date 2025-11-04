@@ -20,19 +20,6 @@
       @endforeach
     </select>
   </div>
-  <div class="mb-3">
-    <label class="form-label">Permissions</label>
-    <div class="row">
-      @foreach($permissions as $p)
-        <div class="col-md-4">
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="permissions[]" value="{{ $p }}" id="p_{{ $p }}" {{ in_array($p, $staff['permissions']) ? 'checked' : '' }}>
-            <label class="form-check-label" for="p_{{ $p }}">{{ $p }}</label>
-          </div>
-        </div>
-      @endforeach
-    </div>
-  </div>
   <div class="mb-3 form-check">
     <input type="checkbox" class="form-check-input" name="isActive" value="1" id="isActive" {{ $staff['isActive'] ? 'checked' : '' }}>
     <label class="form-check-label" for="isActive">Active</label>

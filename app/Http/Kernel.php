@@ -43,11 +43,13 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
         'branch_admin' => \App\Http\Middleware\BranchAdminMiddleware::class,
+        'restaurant_admin' => \App\Http\Middleware\RestaurantAdminMiddleware::class,
     ];
 
     // Backwards-compatibility: also provide $routeMiddleware for older Laravel code that may reference it.
     protected $routeMiddleware = [
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
         'branch_admin' => \App\Http\Middleware\BranchAdminMiddleware::class,
+        'restaurant_admin' => \App\Http\Middleware\RestaurantAdminMiddleware::class,
     ];
 }

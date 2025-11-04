@@ -12,6 +12,9 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\OrdersController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\NotificationsController;
+use App\Http\Controllers\RestaurantAdminController;
+use App\Http\Controllers\SizesController;
+use App\Http\Controllers\BasesController;
 
 // Redirect root to selection if logged in without restaurant, otherwise admin or login
 Route::get('/', function() {
@@ -29,11 +32,25 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Admin panel routes
-Route::prefix('admin')->middleware(['branch_admin'])->group(function () {
+Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::class, \App\Http\Middleware\RestaurantAdminMiddleware::class])->group(function () {
     Route::get('/', [AdminController::class, 'dashboard']);
     Route::get('/orders', [OrdersController::class, 'index'])->name('orders.index');
     // Menu Categories & Items
     Route::get('/menu', [MenuController::class, 'index'])->name('menu.index');
+    // Menu Sizes
+    Route::get('/menu/sizes', [SizesController::class, 'index'])->name('menu.sizes.index');
+    Route::get('/menu/sizes/create', [SizesController::class, 'create'])->name('menu.sizes.create');
+    Route::post('/menu/sizes', [SizesController::class, 'store'])->name('menu.sizes.store');
+    Route::get('/menu/sizes/{id}/edit', [SizesController::class, 'edit'])->name('menu.sizes.edit');
+    Route::put('/menu/sizes/{id}', [SizesController::class, 'update'])->name('menu.sizes.update');
+    Route::delete('/menu/sizes/{id}', [SizesController::class, 'destroy'])->name('menu.sizes.destroy');
+    // Menu Bases
+    Route::get('/menu/bases', [BasesController::class, 'index'])->name('menu.bases.index');
+    Route::get('/menu/bases/create', [BasesController::class, 'create'])->name('menu.bases.create');
+    Route::post('/menu/bases', [BasesController::class, 'store'])->name('menu.bases.store');
+    Route::get('/menu/bases/{id}/edit', [BasesController::class, 'edit'])->name('menu.bases.edit');
+    Route::put('/menu/bases/{id}', [BasesController::class, 'update'])->name('menu.bases.update');
+    Route::delete('/menu/bases/{id}', [BasesController::class, 'destroy'])->name('menu.bases.destroy');
     // Categories
     Route::get('/menu/categories/create', [MenuController::class, 'createCategory'])->name('menu.categories.create');
     Route::post('/menu/categories', [MenuController::class, 'storeCategory'])->name('menu.categories.store');
@@ -73,6 +90,14 @@ Route::prefix('admin')->middleware(['branch_admin'])->group(function () {
     Route::post('/branch/select', [SettingsController::class, 'setBranch'])->name('branch.select');
     Route::post('/branch/clear', [SettingsController::class, 'clearBranch'])->name('branch.clear');
 
+    // UI language toggle (en|fi)
+    Route::post('/lang', function (\Illuminate\Http\Request $request) {
+        $lang = $request->input('lang');
+        if (!in_array($lang, ['en','fi'])) { $lang = 'en'; }
+        $request->session()->put('ui_lang', $lang);
+        return back();
+    })->name('ui.lang.set');
+
     Route::get('/settings/system', [SettingsController::class, 'system'])->name('settings.system');
     Route::post('/settings/system', [SettingsController::class, 'saveSystem'])->name('settings.system.save');
     Route::post('/settings/gdpr/delete-user', [SettingsController::class, 'gdprDeleteUser'])->name('settings.gdpr.delete_user');
@@ -93,6 +118,14 @@ Route::prefix('admin')->middleware(['branch_admin'])->group(function () {
     Route::get('/settings/restaurants/{restaurantId}/branches/{branchId}/edit', [SettingsController::class, 'editBranch'])->name('settings.branches.edit');
     Route::put('/settings/restaurants/{restaurantId}/branches/{branchId}', [SettingsController::class, 'updateBranch'])->name('settings.branches.update');
     Route::delete('/settings/restaurants/{restaurantId}/branches/{branchId}', [SettingsController::class, 'destroyBranch'])->name('settings.branches.destroy');
+
+    // Restaurant Admins management (super admin creates restaurant-scoped admins)
+    Route::get('/settings/restaurant-admins', [RestaurantAdminController::class, 'index'])->name('settings.restaurant_admins');
+    Route::get('/settings/restaurant-admins/create', [RestaurantAdminController::class, 'create'])->name('settings.restaurant_admins.create');
+    Route::post('/settings/restaurant-admins', [RestaurantAdminController::class, 'store'])->name('settings.restaurant_admins.store');
+    Route::get('/settings/restaurant-admins/{userId}/edit', [RestaurantAdminController::class, 'edit'])->name('settings.restaurant_admins.edit');
+    Route::put('/settings/restaurant-admins/{userId}', [RestaurantAdminController::class, 'update'])->name('settings.restaurant_admins.update');
+    Route::delete('/settings/restaurant-admins/{userId}', [RestaurantAdminController::class, 'destroy'])->name('settings.restaurant_admins.destroy');
 });
 
 

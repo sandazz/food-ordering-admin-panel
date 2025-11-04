@@ -13,6 +13,7 @@
         </ul>
     </div>
 @endif
+@if(session('role') === 'admin')
 <form method="POST" action="{{ route('settings.system.save') }}" style="display:grid;gap:12px;max-width:720px;">
     @csrf
     <fieldset style="border:1px solid #e5e7eb;padding:12px;">
@@ -100,4 +101,7 @@
 
     <button type="submit">Save Settings</button>
 </form>
+@else
+  <div class="alert alert-info">You do not have permission to view or modify system settings.</div>
+@endif
 @endsection

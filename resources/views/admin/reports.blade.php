@@ -16,6 +16,7 @@
         </select>
       </label>
     </div>
+    @if(session('role') !== 'branch_admin')
     <div>
       <label>Branch<br>
         <select id="branchId" style="min-width:200px;">
@@ -26,6 +27,7 @@
         </select>
       </label>
     </div>
+    @endif
     <div style="margin-left:auto;display:flex;gap:8px;">
       <button id="refreshBtn" onclick="refreshAll()">Refresh</button>
       <form method="GET" action="{{ route('reports.export') }}" target="_blank" id="exportForm" style="display:flex;gap:8px;align-items:center;">
