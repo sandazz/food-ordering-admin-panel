@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use App\Services\FirebaseService;
 
 class AuthController extends Controller
 {
@@ -12,7 +13,7 @@ class AuthController extends Controller
         return view('auth.login');
     }
 
-    public function login(Request $request)
+    public function login(Request $request, FirebaseService $firebase)
     {
         $request->validate([
             'email' => 'required|email',
@@ -40,7 +41,6 @@ class AuthController extends Controller
 
         $data = $response->json();
 
-        // Save useful info in session
         session([
             'firebase_id_token' => $data['idToken'] ?? null,
             'firebase_refresh_token' => $data['refreshToken'] ?? null,
@@ -50,16 +50,50 @@ class AuthController extends Controller
             ],
         ]);
 
+        $uid = $data['localId'] ?? null;
+        if ($uid) {
+            $userDoc = $firebase->getDocument('users', $uid);
+            $fields = $userDoc['fields'] ?? [];
+            $role = $fields['role']['stringValue'] ?? 'admin';
+
+            // Branch Admin: lock to restaurant + branch
+            if ($role === 'branch_admin') {
+                $rid = $fields['restaurantId']['stringValue'] ?? null;
+                $bid = $fields['branchId']['stringValue'] ?? null;
+                if ($rid && $bid) {
+                    session(['role' => 'branch_admin', 'restaurantId' => $rid, 'branchId' => $bid]);
+                    return redirect()->intended('/admin')->with('status', 'Logged in as Branch Admin');
+                }
+            }
+
+            // Restaurant Admin: lock to restaurant
+            if ($role === 'restaurant_admin') {
+                $rid = $fields['restaurantId']['stringValue'] ?? null;
+                if ($rid) {
+                    session(['role' => 'restaurant_admin', 'restaurantId' => $rid, 'branchId' => null]);
+                    return redirect()->intended('/admin')->with('status', 'Logged in as Restaurant Admin');
+                }
+            }
+
+            // Super Admin: full access
+            if ($role === 'admin') {
+                session(['role' => 'admin', 'restaurantId' => null, 'branchId' => null]);
+                return redirect()->intended('/admin')->with('status', 'Logged in as Super Admin');
+            }
+
+            // Any other role: block access
+            return redirect()->route('login')->withErrors(['auth' => 'Your account role is not permitted to access the admin panel.']);
+        }
+
         if (! session('restaurantId')) {
             return redirect()->route('settings.context')->with('status', 'Please select a restaurant to continue.');
         }
-
         return redirect()->intended('/admin')->with('status', 'Logged in with Firebase');
     }
 
     public function logout(Request $request)
     {
-        $request->session()->forget(['firebase_id_token', 'firebase_refresh_token', 'firebase_user', 'restaurantId', 'branchId']);
+        $request->session()->forget(['firebase_id_token', 'firebase_refresh_token', 'firebase_user', 'restaurantId', 'branchId', 'role']);
         return redirect('/login')->with('status', 'Logged out successfully');
     }
 }

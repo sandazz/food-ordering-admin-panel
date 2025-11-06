@@ -1,12 +1,28 @@
 @extends('layouts.admin')
 @section('content')
 <h2>Create Restaurant</h2>
-<form method="POST" action="{{ route('settings.restaurants.store') }}" class="mt-3">
+<form method="POST" action="{{ route('settings.restaurants.store') }}" class="mt-3" enctype="multipart/form-data">
   @csrf
   <div class="mb-3">
     <label class="form-label">Name</label>
     <input type="text" name="name" class="form-control" required>
   </div>
+  <script>
+    (function(){
+      const inp = document.getElementById('logoInput');
+      const img = document.getElementById('logoPreview');
+      function bind(){
+        if(!(inp && img)) return;
+        inp.addEventListener('change', function(){
+          const f = this.files && this.files[0];
+          if(f){ img.src = URL.createObjectURL(f); img.style.display=''; }
+        });
+      }
+      if(document.readyState === 'loading'){
+        document.addEventListener('DOMContentLoaded', bind);
+      } else { bind(); }
+    })();
+  </script>
   <div class="mb-3">
     <label class="form-label">Description</label>
     <textarea name="description" class="form-control" rows="3"></textarea>
@@ -14,7 +30,15 @@
   <div class="row">
     <div class="col-md-6 mb-3">
       <label class="form-label">Logo URL</label>
-      <input type="url" name="logoUrl" class="form-control">
+      <input type="url" name="logoUrl" class="form-control" placeholder="https://... (optional)">
+      <div class="form-text">Alternatively, upload a file below.</div>
+    </div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Upload Logo</label>
+      <input type="file" name="logo" id="logoInput" class="form-control" accept="image/*">
+      <div class="mt-2">
+        <img id="logoPreview" alt="Logo" style="max-height:80px;display:none;"/>
+      </div>
     </div>
     <div class="col-md-3 mb-3">
       <label class="form-label">Tax Rate</label>

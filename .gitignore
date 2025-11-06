@@ -16,6 +16,15 @@
 /public/build
 /public/hot
 /public/storage
+# Ignore uploaded image files (keep other files)
+/public/uploads/**/*.png
+/public/uploads/**/*.jpg
+/public/uploads/**/*.jpeg
+/public/uploads/**/*.gif
+/public/uploads/**/*.webp
+/public/uploads/**/*.svg
+/public/uploads/**/*.heic
+/public/uploads/**/*.heif
 /storage/*.key
 /storage/pail
 /vendor
