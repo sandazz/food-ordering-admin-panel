@@ -2,14 +2,9 @@
 
 @section('content')
 <style>
-/* Hide navbar on auth pages */
-.navbar {
-    display: none !important;
-}
-
 .auth-container {
-    min-height: 100vh;
-    width: 100vw;
+    min-height: calc(100vh - 76px); /* Subtract navbar height */
+    width: 100%;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     display: flex;
     align-items: center;
