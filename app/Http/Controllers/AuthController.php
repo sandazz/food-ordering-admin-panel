@@ -115,11 +115,10 @@ class AuthController extends Controller
 
         $url = "https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={$apiKey}";
 
-        // $continueUrl = app()->environment('local')
-        //                 ? 'https://food-ordering-63faa.firebaseapp.com/__/auth/action?mode=resetPassword'
-        //                 : url('/reset-password');
+        $continueUrl = app()->environment('local')
+                        ? 'https://127.0.0.1:8000/login'
+                        : url('/login');
 
-        $continueUrl = url('/reset-password');
 
         $payload = [
             'requestType' => 'PASSWORD_RESET',
