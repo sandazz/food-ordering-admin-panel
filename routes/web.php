@@ -30,6 +30,10 @@ Route::get('/firebase-test', [FirebaseController::class, 'test']);
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
+Route::post('/forgot-password', [AuthController::class, 'sendPasswordResetEmail'])->name('password.email');
+Route::get('/reset-password', [AuthController::class, 'showResetPassword'])->name('password.reset');
+Route::post('/reset-password', [AuthController::class, 'handleResetPassword'])->name('password.update');
 
 // Admin panel routes
 Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::class, \App\Http\Middleware\RestaurantAdminMiddleware::class])->group(function () {
