@@ -340,7 +340,7 @@
                             Remember me
                         </label>
                     </div>
-                    <a href="#" class="text-decoration-none">Forgot password?</a>
+                    <a href="{{ route('password.request') }}">Forgot your password?</a>
                 </div>
 
                 <button type="submit" class="btn btn-auth" id="loginBtn">
@@ -356,9 +356,6 @@
                 <a href="#" class="ms-1">Contact Administrator</a>
             </p>
         </div>
-    </div>
-    <div class="mt-3">
-        <a href="{{ route('password.request') }}">Forgot your password?</a>
     </div>
 </div>
 
