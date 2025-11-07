@@ -46,7 +46,9 @@
         <div class="text-muted">{{ \App\Utils\UIStrings::t('settings.context.current_restaurant') }}: <strong>{{ collect($restaurants)->firstWhere('id', $selectedRestaurantId)['name'] ?? $selectedRestaurantId }}</strong></div>
         <div class="text-muted small">{{ \App\Utils\UIStrings::t('settings.context.branch_hint') }}</div>
       </div>
-      <a href="{{ route('settings.branches', $selectedRestaurantId) }}" class="btn btn-outline-primary">{{ \App\Utils\UIStrings::t('settings.context.manage_branches') }}</a>
+      @if(session('role') === 'restaurant_admin')
+        <a href="{{ route('settings.restaurants.edit', $selectedRestaurantId) }}" class="btn btn-outline-primary">Edit Restaurant</a>
+      @endif
     </div>
   @endif
 @endif
