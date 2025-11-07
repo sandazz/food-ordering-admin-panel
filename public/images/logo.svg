@@ -1,0 +1,29 @@
+<svg width="120" height="60" viewBox="0 0 120 60" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4f46e5;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="120" height="60" rx="8" fill="url(#logoGradient)"/>
+  
+  <!-- Fork and Knife Icon -->
+  <g transform="translate(20, 15)">
+    <!-- Fork -->
+    <path d="M8 2 L8 18 M6 2 L6 8 M10 2 L10 8" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    
+    <!-- Knife -->
+    <path d="M16 2 L16 18 M14 2 L18 6" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="50" y="20" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="white">FOOD</text>
+  <text x="50" y="35" font-family="Inter, sans-serif" font-size="10" font-weight="normal" fill="rgba(255,255,255,0.9)">ADMIN</text>
+  
+  <!-- Decorative elements -->
+  <circle cx="95" cy="15" r="2" fill="rgba(255,255,255,0.3)"/>
+  <circle cx="100" cy="20" r="1.5" fill="rgba(255,255,255,0.2)"/>
+  <circle cx="90" cy="25" r="1" fill="rgba(255,255,255,0.4)"/>
+</svg>
