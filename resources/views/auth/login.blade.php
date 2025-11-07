@@ -357,6 +357,9 @@
             </p>
         </div>
     </div>
+    <div class="mt-3">
+        <a href="{{ route('password.request') }}">Forgot your password?</a>
+    </div>
 </div>
 
 <script>
