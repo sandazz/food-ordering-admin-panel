@@ -14,6 +14,7 @@ class UIStrings
             'nav.menu' => 'Menu',
             'nav.menu_sizes' => 'Menu Sizes',
             'nav.menu_bases' => 'Menu Bases',
+            'nav.branches' => 'Branches',
             'nav.staff' => 'Staff',
             'nav.reports' => 'Reports',
             'nav.notifications' => 'Notifications',
@@ -181,7 +182,7 @@ class UIStrings
             'settings.no_permission' => 'You do not have permission to view or modify system settings.',
 
             // Settings: Context
-            'settings.context.title' => 'Restaurant Context',
+            'settings.context.title' => 'Restaurant Settings',
             'settings.context.restaurant' => 'Restaurant',
             'settings.context.choose_restaurant' => '-- Choose Restaurant --',
             'settings.context.manage_restaurants' => 'Manage Restaurants',
@@ -200,6 +201,7 @@ class UIStrings
             'nav.menu' => 'Valikko',
             'nav.menu_sizes' => 'Valikon koot',
             'nav.menu_bases' => 'Valikkopohjat',
+            'nav.branches' => 'Toimipisteet',
             'nav.staff' => 'Henkilökunta',
             'nav.reports' => 'Raportit',
             'nav.notifications' => 'Ilmoitukset',
@@ -367,7 +369,7 @@ class UIStrings
             'settings.no_permission' => 'Sinulla ei ole oikeuksia tarkastella tai muokata järjestelmäasetuksia.',
 
             // Settings: Context
-            'settings.context.title' => 'Ravintolakonteksti',
+            'settings.context.title' => 'Ravintola-asetukset',
             'settings.context.restaurant' => 'Ravintola',
             'settings.context.choose_restaurant' => '-- Valitse ravintola --',
             'settings.context.manage_restaurants' => 'Hallinnoi ravintoloita',

@@ -267,7 +267,7 @@ class SettingsController extends Controller
             'serviceCharge' => (float)($data['serviceCharge'] ?? 0),
             'status' => $data['status'],
         ]);
-        return redirect()->route('settings.restaurants')->with('status', 'Restaurant updated');
+        return redirect()->route('settings.context')->with('status', 'Restaurant updated');
     }
 
     public function destroyRestaurant(FirebaseService $firebase, string $restaurantId)

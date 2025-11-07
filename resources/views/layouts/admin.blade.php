@@ -652,7 +652,7 @@
             <a href="{{ url('/admin/staff') }}" class="{{ request()->is('admin/staff') ? 'active' : '' }}">
                 <i class="bi bi-people"></i>
                 {{ \App\Utils\UIStrings::t('nav.staff') }}
-            </a>
+            </a>     
             <a href="{{ url('/admin/reports') }}" class="{{ request()->is('admin/reports') ? 'active' : '' }}">
                 <i class="bi bi-graph-up"></i>
                 {{ \App\Utils\UIStrings::t('nav.reports') }}
@@ -661,7 +661,13 @@
             <a href="{{ url('/admin/notifications') }}" class="{{ request()->is('admin/notifications') ? 'active' : '' }}">
                 <i class="bi bi-bell"></i>
                 {{ \App\Utils\UIStrings::t('nav.notifications') }}
-            </a>      
+            </a>   
+            @if(in_array(session('role'), ['admin','restaurant_admin'], true))
+            <a href="{{ session('restaurantId') ? route('settings.branches', ['restaurantId' => session('restaurantId')]) : route('settings.index') }}" class="{{ request()->is('admin/settings/restaurants/*/branches*') ? 'active' : '' }}">
+                <i class="bi bi-diagram-3"></i>
+                {{ \App\Utils\UIStrings::t('nav.branches') ?? 'Branches' }}
+            </a>
+            @endif   
             <a href="{{ url('/admin/settings') }}" class="{{ request()->is('admin/settings') ? 'active' : '' }}">
                 <i class="bi bi-gear"></i>
                 {{ \App\Utils\UIStrings::t('nav.settings') }}
@@ -883,6 +889,23 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+</script>
+<style>
+  .required-asterisk{color:#dc3545;margin-left:4px;font-weight:700}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var fields=document.querySelectorAll('input[required],select[required],textarea[required]');
+  fields.forEach(function(el){
+    var id=el.getAttribute('id');
+    var label=null;
+    if(id){label=document.querySelector('label[for="'+CSS.escape(id)+'"]');}
+    if(!label){label=el.closest('.mb-3,.form-group,.input-group,.col,div'); if(label){label=label.querySelector('label');}}
+    if(label && !label.querySelector('.required-asterisk')){
+      var s=document.createElement('span'); s.className='required-asterisk'; s.textContent='*'; label.appendChild(s);
+    }
+  });
+});
 </script>
 </body>
 </html>

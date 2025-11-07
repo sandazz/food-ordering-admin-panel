@@ -198,5 +198,20 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var fields=document.querySelectorAll('input[required],select[required],textarea[required]');
+  fields.forEach(function(el){
+    var id=el.getAttribute('id');
+    var label=null;
+    if(id){label=document.querySelector('label[for="'+CSS.escape(id)+'"]');}
+    if(!label){label=el.closest('.mb-3,.form-group,.input-group,.col,div'); if(label){label=label.querySelector('label');}}
+    if(label){
+      if(!label.querySelector('.required-asterisk')){ var s=document.createElement('span'); s.className='required-asterisk'; s.textContent='*'; label.appendChild(s); }
+      label.classList.add('required');
+    }
+  });
+});
+</script>
 </body>
 </html>
