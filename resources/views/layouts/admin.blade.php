@@ -653,6 +653,10 @@
                 <i class="bi bi-people"></i>
                 {{ \App\Utils\UIStrings::t('nav.staff') }}
             </a>     
+            <a href="{{ url('/admin/promotions') }}" class="{{ request()->is('admin/promotions*') ? 'active' : '' }}">
+                <i class="bi bi-stars"></i>
+                Promotions
+            </a>
             <a href="{{ url('/admin/reports') }}" class="{{ request()->is('admin/reports') ? 'active' : '' }}">
                 <i class="bi bi-graph-up"></i>
                 {{ \App\Utils\UIStrings::t('nav.reports') }}

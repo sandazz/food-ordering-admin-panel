@@ -15,6 +15,7 @@ use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\RestaurantAdminController;
 use App\Http\Controllers\SizesController;
 use App\Http\Controllers\BasesController;
+use App\Http\Controllers\PromotionsController;
 
 // Redirect root to selection if logged in without restaurant, otherwise admin or login
 Route::get('/', function() {
@@ -86,6 +87,14 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::
     Route::get('/reports/export', [ReportsController::class, 'export'])->name('reports.export');
     Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/send', [NotificationsController::class, 'send'])->name('notifications.send');
+
+    // Promotions CRUD
+    Route::get('/promotions', [PromotionsController::class, 'index'])->name('promotions.index');
+    Route::get('/promotions/create', [PromotionsController::class, 'create'])->name('promotions.create');
+    Route::post('/promotions', [PromotionsController::class, 'store'])->name('promotions.store');
+    Route::get('/promotions/{restaurantId}/{branchId}/{promoId}/edit', [PromotionsController::class, 'edit'])->name('promotions.edit');
+    Route::put('/promotions/{restaurantId}/{branchId}/{promoId}', [PromotionsController::class, 'update'])->name('promotions.update');
+    Route::delete('/promotions/{restaurantId}/{branchId}/{promoId}', [PromotionsController::class, 'destroy'])->name('promotions.destroy');
 
     // Settings and Context
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
