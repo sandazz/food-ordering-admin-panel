@@ -47,6 +47,19 @@
     </div>
   </div>
   @endif
+  @if(!empty($isSpecialCategory) && $isSpecialCategory && !empty($ingredients))
+  <div class="mb-3">
+    <label class="form-label">Ingredients</label>
+    <div class="list-group">
+      @foreach($ingredients as $ing)
+        <label class="list-group-item d-flex align-items-center" style="gap:.5rem;">
+          <input type="checkbox" name="ingredients[{{ $ing['id'] }}]" value="1">
+          <span style="min-width:160px;">{{ $ing['name'] }}</span>
+        </label>
+      @endforeach
+    </div>
+  </div>
+  @endif
   <div class="mb-3">
     <label class="form-label">{{ \App\Utils\UIStrings::t('field.item_price_optional') }}</label>
     <input type="number" step="0.01" name="price" class="form-control" placeholder="{{ \App\Utils\UIStrings::t('placeholder.item_price_hint') }}">

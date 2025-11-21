@@ -16,6 +16,7 @@ use App\Http\Controllers\RestaurantAdminController;
 use App\Http\Controllers\SizesController;
 use App\Http\Controllers\BasesController;
 use App\Http\Controllers\PromotionsController;
+use App\Http\Controllers\IngredientsController;
 
 // Redirect root to selection if logged in without restaurant, otherwise admin or login
 Route::get('/', function() {
@@ -56,6 +57,19 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::
     Route::get('/menu/bases/{id}/edit', [BasesController::class, 'edit'])->name('menu.bases.edit');
     Route::put('/menu/bases/{id}', [BasesController::class, 'update'])->name('menu.bases.update');
     Route::delete('/menu/bases/{id}', [BasesController::class, 'destroy'])->name('menu.bases.destroy');
+    // Menu Ingredients
+    Route::get('/menu/ingredients', [IngredientsController::class, 'index'])->name('menu.ingredients.index');
+    Route::get('/menu/ingredients/create', [IngredientsController::class, 'create'])->name('menu.ingredients.create');
+    Route::post('/menu/ingredients', [IngredientsController::class, 'store'])->name('menu.ingredients.store');
+    Route::get('/menu/ingredients/{id}/edit', [IngredientsController::class, 'edit'])->name('menu.ingredients.edit');
+    Route::put('/menu/ingredients/{id}', [IngredientsController::class, 'update'])->name('menu.ingredients.update');
+    Route::delete('/menu/ingredients/{id}', [IngredientsController::class, 'destroy'])->name('menu.ingredients.destroy');
+    // Sub-Ingredients
+    Route::get('/menu/ingredients/{ingredientId}/subs/create', [IngredientsController::class, 'createSub'])->name('menu.ingredients.sub.create');
+    Route::post('/menu/ingredients/{ingredientId}/subs', [IngredientsController::class, 'storeSub'])->name('menu.ingredients.sub.store');
+    Route::get('/menu/ingredients/{ingredientId}/subs/{subId}/edit', [IngredientsController::class, 'editSub'])->name('menu.ingredients.sub.edit');
+    Route::put('/menu/ingredients/{ingredientId}/subs/{subId}', [IngredientsController::class, 'updateSub'])->name('menu.ingredients.sub.update');
+    Route::delete('/menu/ingredients/{ingredientId}/subs/{subId}', [IngredientsController::class, 'destroySub'])->name('menu.ingredients.sub.destroy');
     // Categories
     Route::get('/menu/categories/create', [MenuController::class, 'createCategory'])->name('menu.categories.create');
     Route::post('/menu/categories', [MenuController::class, 'storeCategory'])->name('menu.categories.store');

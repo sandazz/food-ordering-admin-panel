@@ -52,6 +52,21 @@
     </div>
   </div>
   @endif
+  @if(!empty($isSpecialCategory) && $isSpecialCategory && !empty($ingredients))
+  @php($selIngMap = collect($item['ingredientsOptions'] ?? [])->keyBy('id'))
+  <div class="mb-3">
+    <label class="form-label">Ingredients</label>
+    <div class="list-group">
+      @foreach($ingredients as $ing)
+        @php($checked = $selIngMap->has($ing['id']))
+        <label class="list-group-item d-flex align-items-center" style="gap:.5rem;">
+          <input type="checkbox" name="ingredients[{{ $ing['id'] }}]" value="1" {{ $checked ? 'checked' : '' }}>
+          <span style="min-width:160px;">{{ $ing['name'] }}</span>
+        </label>
+      @endforeach
+    </div>
+  </div>
+  @endif
   <div class="mb-3">
     <label class="form-label">{{ \App\Utils\UIStrings::t('field.item_price_optional') }}</label>
     <input type="number" step="0.01" name="price" class="form-control" value="{{ $item['price'] }}" placeholder="{{ \App\Utils\UIStrings::t('placeholder.item_price_hint') }}">
