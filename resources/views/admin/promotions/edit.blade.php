@@ -30,10 +30,19 @@
       <div class="row g-3">
         <div class="col-md-6">
           <div class="mb-3">
-            <label for="name" class="form-label">Promotion Name</label>
-            <input type="text" id="name" name="name" class="form-control" value="{{ old('name', $promotion['name']) }}" required>
+            <label for="name_en" class="form-label">Promotion Name (English)</label>
+            <input type="text" id="name_en" name="name_en" class="form-control" value="{{ old('name_en', $promotion['i18n']['name']['en'] ?? '') }}" required>
           </div>
         </div>
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="name_fi" class="form-label">Promotion Name (Finnish)</label>
+            <input type="text" id="name_fi" name="name_fi" class="form-control" value="{{ old('name_fi', $promotion['i18n']['name']['fi'] ?? '') }}" required>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3">
         <div class="col-md-6">
           <div class="mb-3">
             <label for="status" class="form-label">Status</label>
@@ -45,30 +54,27 @@
         </div>
       </div>
 
-      <div class="mb-3">
-        <label for="description" class="form-label">Description</label>
-        <textarea id="description" name="description" class="form-control" rows="3">{{ old('description', $promotion['description']) }}</textarea>
-      </div>
-
-      <div class="row g-3 mb-3">
+      <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label">Current Image</label>
-          <div>
-            @if(!empty($promotion['imageUrl']))
-              <img src="{{ $promotion['imageUrl'] }}" alt="" style="width:240px;height:120px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;">
-            @else
-              <span class="text-muted">No image</span>
-            @endif
+          <div class="mb-3">
+            <label for="description_en" class="form-label">Description (English)</label>
+            <textarea id="description_en" name="description_en" class="form-control" rows="3">{{ old('description_en', $promotion['i18n']['description']['en'] ?? '') }}</textarea>
           </div>
         </div>
         <div class="col-md-6">
-          <label for="image" class="form-label">Replace Image</label>
-          <input type="file" id="image" name="image" class="form-control" accept="image/*">
-          <small class="text-muted">Recommended resolution: 1200x600px (or similar 2:1). Max 5MB.</small>
+          <div class="mb-3">
+            <label for="description_fi" class="form-label">Description (Finnish)</label>
+            <textarea id="description_fi" name="description_fi" class="form-control" rows="3">{{ old('description_fi', $promotion['i18n']['description']['fi'] ?? '') }}</textarea>
+          </div>
         </div>
       </div>
 
       <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label for="image" class="form-label">Image</label>
+          <input type="file" id="image" name="image" class="form-control" accept="image/*">
+          <small class="text-muted">Recommended resolution: 1200x600px (or similar 2:1). Max 5MB.</small>
+        </div>
         <div class="col-md-3">
           <label for="discountType" class="form-label">Discount Type</label>
           <select id="discountType" name="discountType" class="form-select" required>
@@ -80,11 +86,14 @@
           <label for="discountValue" class="form-label">Discount Value</label>
           <input type="number" step="0.01" min="0" id="discountValue" name="discountValue" class="form-control" value="{{ old('discountValue', $promotion['discount']['value']) }}" required>
         </div>
-        <div class="col-md-3">
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
           <label for="startsAt" class="form-label">Starts At</label>
           <input type="date" id="startsAt" name="startsAt" class="form-control" value="{{ old('startsAt', $promotion['startsAt'] ? \Carbon\Carbon::parse($promotion['startsAt'])->format('Y-m-d') : '') }}">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-6">
           <label for="endsAt" class="form-label">Ends At</label>
           <input type="date" id="endsAt" name="endsAt" class="form-control" value="{{ old('endsAt', $promotion['endsAt'] ? \Carbon\Carbon::parse($promotion['endsAt'])->format('Y-m-d') : '') }}">
         </div>

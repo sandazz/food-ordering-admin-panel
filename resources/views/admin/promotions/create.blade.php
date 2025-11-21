@@ -56,10 +56,19 @@
       <div class="row g-3">
         <div class="col-md-6">
           <div class="mb-3">
-            <label for="name" class="form-label">Promotion Name</label>
-            <input type="text" id="name" name="name" class="form-control" value="{{ old('name') }}" required>
+            <label for="name_en" class="form-label">Promotion Name (English)</label>
+            <input type="text" id="name_en" name="name_en" class="form-control" value="{{ old('name_en') }}" required>
           </div>
         </div>
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="name_fi" class="form-label">Promotion Name (Finnish)</label>
+            <input type="text" id="name_fi" name="name_fi" class="form-control" value="{{ old('name_fi') }}" required>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3">
         <div class="col-md-6">
           <div class="mb-3">
             <label for="status" class="form-label">Status</label>
@@ -70,10 +79,19 @@
           </div>
         </div>
       </div>
-
-      <div class="mb-3">
-        <label for="description" class="form-label">Description</label>
-        <textarea id="description" name="description" class="form-control" rows="3">{{ old('description') }}</textarea>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="description_en" class="form-label">Description (English)</label>
+            <textarea id="description_en" name="description_en" class="form-control" rows="3">{{ old('description_en') }}</textarea>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label for="description_fi" class="form-label">Description (Finnish)</label>
+            <textarea id="description_fi" name="description_fi" class="form-control" rows="3">{{ old('description_fi') }}</textarea>
+          </div>
+        </div>
       </div>
 
       <div class="row g-3 mb-3">

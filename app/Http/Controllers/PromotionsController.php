@@ -111,8 +111,10 @@ class PromotionsController extends Controller
     public function store(Request $request, FirebaseService $firebase)
     {
         $baseRules = [
-            'name' => 'required|string|max:150',
-            'description' => 'nullable|string|max:1000',
+            'name_en' => 'required|string|max:150',
+            'name_fi' => 'required|string|max:150',
+            'description_en' => 'nullable|string|max:1000',
+            'description_fi' => 'nullable|string|max:1000',
             'image' => 'nullable|image|max:5120',
             'status' => 'required|string',
             'discountType' => 'required|string|in:percent,fixed',
@@ -149,8 +151,14 @@ class PromotionsController extends Controller
 
         $id = 'promo_' . Str::random(6);
         $payload = [
-            'name' => $data['name'],
-            'description' => $data['description'] ?? '',
+            'name' => [
+                'en' => $data['name_en'],
+                'fi' => $data['name_fi'],
+            ],
+            'description' => [
+                'en' => $data['description_en'] ?? '',
+                'fi' => $data['description_fi'] ?? '',
+            ],
             'imageUrl' => $imageUrl,
             'status' => $data['status'],
             'discount' => [
@@ -180,8 +188,10 @@ class PromotionsController extends Controller
     public function update(Request $request, FirebaseService $firebase, string $restaurantId, string $branchId, string $promoId)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:150',
-            'description' => 'nullable|string|max:1000',
+            'name_en' => 'required|string|max:150',
+            'name_fi' => 'required|string|max:150',
+            'description_en' => 'nullable|string|max:1000',
+            'description_fi' => 'nullable|string|max:1000',
             'image' => 'nullable|image|max:5120',
             'status' => 'required|string',
             'discountType' => 'required|string|in:percent,fixed',
@@ -194,8 +204,14 @@ class PromotionsController extends Controller
             $imageUrl = $this->storePublicUpload($request->file('image'), 'promotions');
         }
         $payload = [
-            'name' => $data['name'],
-            'description' => $data['description'] ?? '',
+            'name' => [
+                'en' => $data['name_en'],
+                'fi' => $data['name_fi'],
+            ],
+            'description' => [
+                'en' => $data['description_en'] ?? '',
+                'fi' => $data['description_fi'] ?? '',
+            ],
             'status' => $data['status'],
             'discount' => [
                 'type' => $data['discountType'],
@@ -221,10 +237,22 @@ class PromotionsController extends Controller
     {
         $startsAt = $f['startsAt']['timestampValue'] ?? ($f['startsAt']['stringValue'] ?? '');
         $endsAt = $f['endsAt']['timestampValue'] ?? ($f['endsAt']['stringValue'] ?? '');
+        $uiLang = session('ui_lang', 'en');
+        // Resolve i18n fields gracefully for both legacy string and new map structure
+        $nameMap = [
+            'en' => $f['name']['mapValue']['fields']['en']['stringValue'] ?? ($f['name']['stringValue'] ?? ''),
+            'fi' => $f['name']['mapValue']['fields']['fi']['stringValue'] ?? ($f['name']['stringValue'] ?? ''),
+        ];
+        $descMap = [
+            'en' => $f['description']['mapValue']['fields']['en']['stringValue'] ?? ($f['description']['stringValue'] ?? ''),
+            'fi' => $f['description']['mapValue']['fields']['fi']['stringValue'] ?? ($f['description']['stringValue'] ?? ''),
+        ];
+        $displayName = $nameMap[$uiLang] ?: ($nameMap['en'] ?: $nameMap['fi']);
+        $displayDesc = $descMap[$uiLang] ?: ($descMap['en'] ?: $descMap['fi']);
         return [
             'id' => $id,
-            'name' => $f['name']['stringValue'] ?? '',
-            'description' => $f['description']['stringValue'] ?? '',
+            'name' => $displayName,
+            'description' => $displayDesc,
             'imageUrl' => $f['imageUrl']['stringValue'] ?? '',
             'status' => $f['status']['stringValue'] ?? 'inactive',
             'discount' => [
@@ -235,6 +263,10 @@ class PromotionsController extends Controller
             ],
             'startsAt' => $startsAt,
             'endsAt' => $endsAt,
+            'i18n' => [
+                'name' => $nameMap,
+                'description' => $descMap,
+            ],
         ];
     }
 
