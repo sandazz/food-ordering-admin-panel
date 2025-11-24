@@ -645,6 +645,10 @@
                 <i class="bi bi-layers"></i>
                 {{ \App\Utils\UIStrings::t('nav.menu_bases') }}
             </a>
+            <a href="{{ route('menu.ingredients.index') }}" class="{{ request()->is('admin/menu/ingredients*') ? 'active' : '' }}">
+                <i class="bi bi-basket2"></i>
+                Ingredients
+            </a>
         </div>
         
         <div class="nav-section">
@@ -653,6 +657,10 @@
                 <i class="bi bi-people"></i>
                 {{ \App\Utils\UIStrings::t('nav.staff') }}
             </a>     
+            <a href="{{ url('/admin/promotions') }}" class="{{ request()->is('admin/promotions*') ? 'active' : '' }}">
+                <i class="bi bi-stars"></i>
+                Promotions
+            </a>
             <a href="{{ url('/admin/reports') }}" class="{{ request()->is('admin/reports') ? 'active' : '' }}">
                 <i class="bi bi-graph-up"></i>
                 {{ \App\Utils\UIStrings::t('nav.reports') }}
