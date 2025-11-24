@@ -62,6 +62,7 @@
         <label class="list-group-item d-flex align-items-center" style="gap:.5rem;">
           <input type="checkbox" name="ingredients[{{ $ing['id'] }}]" value="1" {{ $checked ? 'checked' : '' }}>
           <span style="min-width:160px;">{{ $ing['name'] }}</span>
+          <input type="number" min="0" step="1" name="ingredients_max[{{ $ing['id'] }}]" class="form-control form-control-sm" style="max-width:140px; {{ $checked ? '' : 'display:none;' }}" placeholder="Max selections (0=all)" value="{{ $checked ? ($selIngMap[$ing['id']]['maxSelections'] ?? 0) : '' }}">
         </label>
       @endforeach
     </div>

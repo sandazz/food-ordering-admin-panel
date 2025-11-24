@@ -448,6 +448,7 @@ class MenuController extends Controller
             'bases' => 'nullable|array',
             'bases_price' => 'nullable|array',
             'ingredients' => 'nullable|array',
+            'ingredients_max' => 'nullable|array',
         ]);
         [$restaurantId, $branchId] = $this->ctx($request);
         $basePath = "restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items";
@@ -518,6 +519,7 @@ class MenuController extends Controller
         // If special category, persist selected ingredients and copy sub-ingredients
         if ($isSpecialCategory) {
             $selectedIngredients = array_keys($request->input('ingredients', []));
+            $maxMap = $request->input('ingredients_max', []);
             foreach ($selectedIngredients as $ingId) {
                 // load ingredient for name
                 $ingDoc = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/ingredients", $ingId);
@@ -526,6 +528,7 @@ class MenuController extends Controller
                 $ingName = $ingFields['name']['stringValue'] ?? ($ingFields['name_en']['stringValue'] ?? $ingId);
                 $firebase->createDocument($basePath . "/{$itemId}/ingredients", [
                     'name' => $ingName,
+                    'maxSelections' => isset($maxMap[$ingId]) && $maxMap[$ingId] !== '' ? (int)$maxMap[$ingId] : 0,
                 ], $ingId);
                 // copy sub-ingredients
                 $subCol = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/ingredients/{$ingId}/subingredients");
@@ -646,6 +649,7 @@ class MenuController extends Controller
                 $item['ingredientsOptions'][] = [
                     'id' => $iid,
                     'name' => $if2['name']['stringValue'] ?? $iid,
+                    'maxSelections' => isset($if2['maxSelections']['integerValue']) ? (int)$if2['maxSelections']['integerValue'] : 0,
                 ];
             }
         }
@@ -668,6 +672,7 @@ class MenuController extends Controller
             'baseId' => 'nullable|string',
             'basePrice' => 'nullable|numeric|min:0',
             'ingredients' => 'nullable|array',
+            'ingredients_max' => 'nullable|array',
         ]);
         [$restaurantId, $branchId] = $this->ctx($request);
         // Read category to check special
@@ -756,6 +761,7 @@ class MenuController extends Controller
                 $firebase->deleteDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/ingredients", $iid);
             }
             $selectedIngredients = array_keys($request->input('ingredients', []));
+            $maxMap = $request->input('ingredients_max', []);
             foreach ($selectedIngredients as $ingId) {
                 $ingDoc = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/ingredients", $ingId);
                 if (empty($ingDoc['fields'])) { $ingDoc = $firebase->getDocument("restaurants/{$restaurantId}/ingredients", $ingId); }
@@ -763,6 +769,7 @@ class MenuController extends Controller
                 $ingName = $ingFields['name']['stringValue'] ?? ($ingFields['name_en']['stringValue'] ?? $ingId);
                 $firebase->createDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/ingredients", [
                     'name' => $ingName,
+                    'maxSelections' => isset($maxMap[$ingId]) && $maxMap[$ingId] !== '' ? (int)$maxMap[$ingId] : 0,
                 ], $ingId);
                 $subCol = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/ingredients/{$ingId}/subingredients");
                 foreach (($subCol['documents'] ?? []) as $sd) {
