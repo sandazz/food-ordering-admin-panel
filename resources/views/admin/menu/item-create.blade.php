@@ -53,8 +53,9 @@
     <div class="list-group">
       @foreach($ingredients as $ing)
         <label class="list-group-item d-flex align-items-center" style="gap:.5rem;">
-          <input type="checkbox" name="ingredients[{{ $ing['id'] }}]" value="1">
+          <input type="checkbox" name="ingredients[{{ $ing['id'] }}]" value="1" onchange="toggleInline(this)">
           <span style="min-width:160px;">{{ $ing['name'] }}</span>
+          <input type="number" min="0" step="1" name="ingredients_max[{{ $ing['id'] }}]" class="form-control form-control-sm" style="max-width:140px; display:none;" placeholder="Max selections (0=all)">
         </label>
       @endforeach
     </div>
