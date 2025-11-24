@@ -20,6 +20,10 @@
     <label class="form-label">{{ \App\Utils\UIStrings::t('field.description_fi') }}</label>
     <textarea name="description_fi" class="form-control" rows="3">{{ $category['description_fi'] ?? '' }}</textarea>
   </div>
+  <div class="mb-3 form-check">
+    <input type="checkbox" class="form-check-input" id="isSpecial" name="isSpecial" value="1" {{ !empty($category['isSpecial']) ? 'checked' : '' }}>
+    <label class="form-check-label" for="isSpecial">Special Menu</label>
+  </div>
   <div class="row">
     <div class="col-md-6 mb-3">
       <label class="form-label">{{ \App\Utils\UIStrings::t('field.image_url') }}</label>
