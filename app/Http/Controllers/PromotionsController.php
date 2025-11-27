@@ -122,6 +122,8 @@ class PromotionsController extends Controller
             'startsAt' => 'nullable|date',
             'endsAt' => 'nullable|date|after_or_equal:startsAt',
         ];
+        // Optional promocode
+        $baseRules['promocode'] = 'nullable|string|max:50';
         if (session('role') === 'admin') {
             $baseRules['restaurantId'] = 'required|string';
             $baseRules['branchId'] = 'required|string';
@@ -167,6 +169,7 @@ class PromotionsController extends Controller
             ],
             'startsAt' => !empty($data['startsAt']) ? (string)date('c', strtotime($data['startsAt'])) : '',
             'endsAt' => !empty($data['endsAt']) ? (string)date('c', strtotime($data['endsAt'])) : '',
+            'promocode' => $data['promocode'] ?? '',
             'createdAt' => now()->toIso8601String(),
         ];
         $firebase->createDocument("restaurants/{$restaurantId}/branches/{$branchId}/promotions", $payload, $id);
@@ -198,6 +201,7 @@ class PromotionsController extends Controller
             'discountValue' => 'required|numeric|min:0',
             'startsAt' => 'nullable|date',
             'endsAt' => 'nullable|date|after_or_equal:startsAt',
+            'promocode' => 'nullable|string|max:50',
         ]);
         $imageUrl = null;
         if ($request->hasFile('image')) {
@@ -219,6 +223,7 @@ class PromotionsController extends Controller
             ],
             'startsAt' => !empty($data['startsAt']) ? (string)date('c', strtotime($data['startsAt'])) : '',
             'endsAt' => !empty($data['endsAt']) ? (string)date('c', strtotime($data['endsAt'])) : '',
+            'promocode' => $data['promocode'] ?? '',
         ];
         if (!is_null($imageUrl)) {
             $payload['imageUrl'] = $imageUrl;
@@ -263,6 +268,7 @@ class PromotionsController extends Controller
             ],
             'startsAt' => $startsAt,
             'endsAt' => $endsAt,
+            'promocode' => $f['promocode']['stringValue'] ?? '',
             'i18n' => [
                 'name' => $nameMap,
                 'description' => $descMap,

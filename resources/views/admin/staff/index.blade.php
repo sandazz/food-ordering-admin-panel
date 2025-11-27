@@ -30,6 +30,7 @@
           <td>{{ $s['isActive'] ? \App\Utils\UIStrings::t('common.yes') : \App\Utils\UIStrings::t('common.no') }}</td>
           <td class="text-end">
             <a class="btn btn-sm btn-outline-secondary" href="{{ route('staff.edit', $s['id']) }}">{{ \App\Utils\UIStrings::t('common.edit') }}</a>
+            <a class="btn btn-sm btn-outline-primary" href="{{ route('staff.password.edit', $s['id']) }}">Reset Password</a>
             <form action="{{ route('staff.destroy', $s['id']) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ \App\Utils\UIStrings::t('staff.delete_confirm') }}')">
               @csrf
               @method('DELETE')

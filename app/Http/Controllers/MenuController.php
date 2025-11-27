@@ -439,7 +439,8 @@ class MenuController extends Controller
             'name_fi' => 'required|string|max:120',
             'description_en' => 'nullable|string|max:500',
             'description_fi' => 'nullable|string|max:500',
-            'price' => 'nullable|numeric|min:0',
+            'price' => 'required|numeric|min:0',
+            'offerPrice' => 'nullable|numeric|min:0',
             'available' => 'nullable|boolean',
             'imageUrl' => 'nullable|url',
             'image' => 'nullable|image|max:4096',
@@ -485,6 +486,7 @@ class MenuController extends Controller
             $sum += $p;
         }
         $finalPrice = isset($data['price']) && $data['price']!==null && $data['price']!=='' ? (float)$data['price'] : 0.0;
+        $finalOfferPrice = isset($data['offerPrice']) && $data['offerPrice']!==null && $data['offerPrice']!=='' ? (float)$data['offerPrice'] : 0.0;
         $itemId = 'item_' . Str::random(6);
         $imageUrl = $data['imageUrl'] ?? '';
         if ($request->hasFile('image')) {
@@ -498,6 +500,7 @@ class MenuController extends Controller
             'description_en' => $data['description_en'] ?? '',
             'description_fi' => $data['description_fi'] ?? '',
             'price' => $finalPrice,
+            'offerPrice' => $finalOfferPrice,
             'available' => (bool) ($data['available'] ?? true),
             'imageUrl' => $imageUrl,
         ];
@@ -516,7 +519,7 @@ class MenuController extends Controller
                 'price' => (float)$opt['price'],
             ], $opt['id']);
         }
-        // If special category, persist selected ingredients and copy sub-ingredients
+        // If special category, persist selected ingredients with per-size max and copy sub-ingredients
         if ($isSpecialCategory) {
             $selectedIngredients = array_keys($request->input('ingredients', []));
             $maxMap = $request->input('ingredients_max', []);
@@ -528,8 +531,19 @@ class MenuController extends Controller
                 $ingName = $ingFields['name']['stringValue'] ?? ($ingFields['name_en']['stringValue'] ?? $ingId);
                 $firebase->createDocument($basePath . "/{$itemId}/ingredients", [
                     'name' => $ingName,
-                    'maxSelections' => isset($maxMap[$ingId]) && $maxMap[$ingId] !== '' ? (int)$maxMap[$ingId] : 0,
+                    // legacy overall max kept as 0 when using per-size limits
+                    'maxSelections' => 0,
                 ], $ingId);
+                // write per-size limits if provided
+                $perSize = $maxMap[$ingId] ?? [];
+                if (is_array($perSize)) {
+                    foreach ($perSize as $sizeId => $mx) {
+                        if ($mx === '' || $mx === null) { continue; }
+                        $firebase->createDocument($basePath . "/{$itemId}/ingredients/{$ingId}/sizeLimits", [
+                            'maxSelections' => (int)$mx,
+                        ], (string)$sizeId);
+                    }
+                }
                 // copy sub-ingredients
                 $subCol = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/ingredients/{$ingId}/subingredients");
                 $subDocs = $subCol['documents'] ?? [];
@@ -570,6 +584,7 @@ class MenuController extends Controller
             'description_en' => $f['description_en']['stringValue'] ?? ($f['description']['stringValue'] ?? ''),
             'description_fi' => $f['description_fi']['stringValue'] ?? '',
             'price' => isset($f['price']['doubleValue']) ? (float)$f['price']['doubleValue'] : (float)($f['price']['integerValue'] ?? 0),
+            'offerPrice' => isset($f['offerPrice']['doubleValue']) ? (float)$f['offerPrice']['doubleValue'] : (float)($f['offerPrice']['integerValue'] ?? 0),
             'available' => (bool) ($f['available']['booleanValue'] ?? true),
             'imageUrl' => $f['imageUrl']['stringValue'] ?? '',
         ];
@@ -646,11 +661,20 @@ class MenuController extends Controller
             foreach (($icol['documents'] ?? []) as $idoc2) {
                 $iid = Str::afterLast($idoc2['name'], '/');
                 $if2 = $idoc2['fields'] ?? [];
-                $item['ingredientsOptions'][] = [
+                $opt = [
                     'id' => $iid,
                     'name' => $if2['name']['stringValue'] ?? $iid,
                     'maxSelections' => isset($if2['maxSelections']['integerValue']) ? (int)$if2['maxSelections']['integerValue'] : 0,
+                    'sizeMax' => [],
                 ];
+                // load per-size limits if present
+                $slcol = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/ingredients/{$iid}/sizeLimits");
+                foreach (($slcol['documents'] ?? []) as $sd) {
+                    $sid = Str::afterLast($sd['name'], '/');
+                    $sf = $sd['fields'] ?? [];
+                    $opt['sizeMax'][$sid] = isset($sf['maxSelections']['integerValue']) ? (int)$sf['maxSelections']['integerValue'] : 0;
+                }
+                $item['ingredientsOptions'][] = $opt;
             }
         }
         return view('admin.menu.item-edit', compact('item','sizes','bases','isSpecialCategory','ingredients'));
@@ -663,7 +687,8 @@ class MenuController extends Controller
             'name_fi' => 'required|string|max:120',
             'description_en' => 'nullable|string|max:500',
             'description_fi' => 'nullable|string|max:500',
-            'price' => 'nullable|numeric|min:0',
+            'price' => 'required|numeric|min:0',
+            'offerPrice' => 'nullable|numeric|min:0',
             'available' => 'nullable|boolean',
             'imageUrl' => 'nullable|url',
             'image' => 'nullable|image|max:4096',
@@ -723,6 +748,10 @@ class MenuController extends Controller
             'available' => (bool) ($data['available'] ?? true),
             'imageUrl' => $imageUrl,
         ];
+        // Save offerPrice if provided (do not overwrite when left blank)
+        if (array_key_exists('offerPrice', $data) && $data['offerPrice'] !== null && $data['offerPrice'] !== '') {
+            $payload['offerPrice'] = (float)$data['offerPrice'];
+        }
         $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId, $payload);
         // Replace subcollections: delete existing then create new
         $existingSizes = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/sizes");
@@ -758,6 +787,12 @@ class MenuController extends Controller
                     $sid = Str::afterLast($sd['name'], '/');
                     $firebase->deleteDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/ingredients/{$iid}/subingredients", $sid);
                 }
+                // delete sizeLimits if any
+                $existSL = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/ingredients/{$iid}/sizeLimits");
+                foreach (($existSL['documents'] ?? []) as $sd) {
+                    $sid = Str::afterLast($sd['name'], '/');
+                    $firebase->deleteDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/ingredients/{$iid}/sizeLimits", $sid);
+                }
                 $firebase->deleteDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/ingredients", $iid);
             }
             $selectedIngredients = array_keys($request->input('ingredients', []));
@@ -769,8 +804,18 @@ class MenuController extends Controller
                 $ingName = $ingFields['name']['stringValue'] ?? ($ingFields['name_en']['stringValue'] ?? $ingId);
                 $firebase->createDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/ingredients", [
                     'name' => $ingName,
-                    'maxSelections' => isset($maxMap[$ingId]) && $maxMap[$ingId] !== '' ? (int)$maxMap[$ingId] : 0,
+                    'maxSelections' => 0,
                 ], $ingId);
+                // write per-size limits if provided
+                $perSize = $maxMap[$ingId] ?? [];
+                if (is_array($perSize)) {
+                    foreach ($perSize as $sizeId => $mx) {
+                        if ($mx === '' || $mx === null) { continue; }
+                        $firebase->createDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/ingredients/{$ingId}/sizeLimits", [
+                            'maxSelections' => (int)$mx,
+                        ], (string)$sizeId);
+                    }
+                }
                 $subCol = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/ingredients/{$ingId}/subingredients");
                 foreach (($subCol['documents'] ?? []) as $sd) {
                     $sid = Str::afterLast($sd['name'], '/');
@@ -795,6 +840,21 @@ class MenuController extends Controller
         [$restaurantId, $branchId] = $this->ctx($request);
         $firebase->deleteDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId);
         return redirect()->route('menu.index')->with('status', 'Item deleted');
+    }
+
+    public function toggleItemAvailability(Request $request, FirebaseService $firebase, string $categoryId, string $itemId)
+    {
+        [$restaurantId, $branchId] = $this->ctx($request);
+        if (!$restaurantId || !$branchId) {
+            return redirect()->route('settings.context')->with('status', 'Select restaurant and branch first.');
+        }
+        $doc = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId);
+        $f = $doc['fields'] ?? [];
+        $available = (bool) ($f['available']['booleanValue'] ?? true);
+        $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId, [
+            'available' => !$available,
+        ]);
+        return back()->with('status', !$available ? 'Item marked available' : 'Item marked unavailable');
     }
 }
 

@@ -294,6 +294,7 @@ class SettingsController extends Controller
             'name' => 'required|string|max:150',
             'contact' => 'nullable|string|max:120',
             'status' => 'required|string',
+            'businessId' => 'nullable|string|max:100',
             'street' => 'nullable|string|max:200',
             'city' => 'nullable|string|max:120',
             'state' => 'nullable|string|max:120',
@@ -310,6 +311,7 @@ class SettingsController extends Controller
             'name' => $data['name'],
             'contact' => $data['contact'] ?? '',
             'status' => $data['status'],
+            'businessId' => $data['businessId'] ?? '',
             'imageUrl' => $imageUrl,
             'address' => [
                 'street' => $data['street'] ?? '',
@@ -332,6 +334,7 @@ class SettingsController extends Controller
             'contact' => $f['contact']['stringValue'] ?? '',
             'status' => $f['status']['stringValue'] ?? 'open',
             'imageUrl' => $f['imageUrl']['stringValue'] ?? '',
+            'businessId' => $f['businessId']['stringValue'] ?? '',
             'address' => [
                 'street' => $f['address']['mapValue']['fields']['street']['stringValue'] ?? '',
                 'city' => $f['address']['mapValue']['fields']['city']['stringValue'] ?? '',
@@ -349,6 +352,7 @@ class SettingsController extends Controller
             'name' => 'required|string|max:150',
             'contact' => 'nullable|string|max:120',
             'status' => 'required|string',
+            'businessId' => 'nullable|string|max:100',
             'street' => 'nullable|string|max:200',
             'city' => 'nullable|string|max:120',
             'state' => 'nullable|string|max:120',
@@ -364,6 +368,7 @@ class SettingsController extends Controller
             'name' => $data['name'],
             'contact' => $data['contact'] ?? '',
             'status' => $data['status'],
+            'businessId' => $data['businessId'] ?? '',
             ...(isset($imageUrl) && $imageUrl !== null ? ['imageUrl' => $imageUrl] : []),
             'address' => [
                 'street' => $data['street'] ?? '',
@@ -424,6 +429,7 @@ class SettingsController extends Controller
                 'id' => $id,
                 'name' => $f['name']['stringValue'] ?? '',
                 'status' => $f['status']['stringValue'] ?? 'open',
+                'businessId' => $f['businessId']['stringValue'] ?? '',
             ];
         }
         return $branches;

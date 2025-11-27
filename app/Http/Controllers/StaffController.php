@@ -334,4 +334,56 @@ class StaffController extends Controller
         $firebase->deleteDocument("restaurants/{$restaurantId}/branches/{$branchId}/staff", $staffId);
         return redirect()->route('staff.index')->with('status', 'Staff deleted');
     }
+
+    public function showResetPassword(Request $request, FirebaseService $firebase, string $staffId)
+    {
+        [$restaurantId, $branchId] = $this->ctx($request);
+        if (!$restaurantId || !$branchId) {
+            return redirect()->route('settings.context')->with('status', 'Select restaurant and branch first.');
+        }
+        // Load staff to display context and enforce permissions
+        $doc = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/staff", $staffId);
+        $f = $doc['fields'] ?? [];
+        if (empty($f)) { return redirect()->route('staff.index')->with('status', 'Staff not found'); }
+        $targetRole = $f['role']['stringValue'] ?? '';
+        // Authorization: who can reset whom
+        $currentRole = session('role');
+        if ($currentRole === 'branch_admin' && $targetRole !== 'cashier') {
+            abort(403, 'Branch admin can only reset cashier passwords');
+        }
+        // restaurant_admin can reset branch_admin and cashier; admin can reset anyone listed here
+        return view('admin.staff.password', [
+            'staffId' => $staffId,
+            'staffName' => $f['name']['stringValue'] ?? $staffId,
+            'staffEmail' => $f['email']['stringValue'] ?? '',
+            'staffRole' => $targetRole,
+        ]);
+    }
+
+    public function resetPassword(Request $request, FirebaseService $firebase, string $staffId)
+    {
+        $data = $request->validate([
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+        [$restaurantId, $branchId] = $this->ctx($request);
+        if (!$restaurantId || !$branchId) {
+            return redirect()->route('settings.context')->with('status', 'Select restaurant and branch first.');
+        }
+        $doc = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/staff", $staffId);
+        $f = $doc['fields'] ?? [];
+        if (empty($f)) { return redirect()->route('staff.index')->with('status', 'Staff not found'); }
+        $targetRole = $f['role']['stringValue'] ?? '';
+        $uid = $f['uid']['stringValue'] ?? '';
+        if (!$uid) { return back()->withErrors(['password' => 'Cannot reset password: missing UID']); }
+        $currentRole = session('role');
+        if ($currentRole === 'branch_admin' && $targetRole !== 'cashier') {
+            abort(403, 'Branch admin can only reset cashier passwords');
+        }
+        // restaurant_admin can reset branch_admin & cashier; admin can reset any here
+        $ok = $firebase->updateUserPassword($uid, $data['password']);
+        if (!$ok) {
+            return back()->withErrors(['password' => 'Failed to reset password. Try again.']);
+        }
+        return redirect()->route('staff.index')->with('status', 'Password reset successfully');
+    }
 }

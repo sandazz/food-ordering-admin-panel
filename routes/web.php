@@ -81,6 +81,7 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::
     Route::post('/menu/categories/{categoryId}/items', [MenuController::class, 'storeItem'])->name('menu.items.store');
     Route::get('/menu/categories/{categoryId}/items/{itemId}/edit', [MenuController::class, 'editItem'])->name('menu.items.edit');
     Route::put('/menu/categories/{categoryId}/items/{itemId}', [MenuController::class, 'updateItem'])->name('menu.items.update');
+    Route::patch('/menu/categories/{categoryId}/items/{itemId}/toggle', [MenuController::class, 'toggleItemAvailability'])->name('menu.items.toggle');
     Route::delete('/menu/categories/{categoryId}/items/{itemId}', [MenuController::class, 'destroyItem'])->name('menu.items.destroy');
 
     // Category copy between branches
@@ -93,6 +94,8 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::
     Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
     Route::get('/staff/{staffId}/edit', [StaffController::class, 'edit'])->name('staff.edit');
     Route::put('/staff/{staffId}', [StaffController::class, 'update'])->name('staff.update');
+    Route::get('/staff/{staffId}/password', [StaffController::class, 'showResetPassword'])->name('staff.password.edit');
+    Route::put('/staff/{staffId}/password', [StaffController::class, 'resetPassword'])->name('staff.password.update');
     Route::delete('/staff/{staffId}', [StaffController::class, 'destroy'])->name('staff.destroy');
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
     Route::get('/reports/sales', [ReportsController::class, 'sales'])->name('reports.sales');
@@ -109,6 +112,14 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::
     Route::get('/promotions/{restaurantId}/{branchId}/{promoId}/edit', [PromotionsController::class, 'edit'])->name('promotions.edit');
     Route::put('/promotions/{restaurantId}/{branchId}/{promoId}', [PromotionsController::class, 'update'])->name('promotions.update');
     Route::delete('/promotions/{restaurantId}/{branchId}/{promoId}', [PromotionsController::class, 'destroy'])->name('promotions.destroy');
+
+    // Lounas Hour CRUD
+    Route::get('/lounas-hour', [\App\Http\Controllers\LounasHourController::class, 'index'])->name('lounas.index');
+    Route::get('/lounas-hour/create', [\App\Http\Controllers\LounasHourController::class, 'create'])->name('lounas.create');
+    Route::post('/lounas-hour', [\App\Http\Controllers\LounasHourController::class, 'store'])->name('lounas.store');
+    Route::get('/lounas-hour/{restaurantId}/{branchId}/{id}/edit', [\App\Http\Controllers\LounasHourController::class, 'edit'])->name('lounas.edit');
+    Route::put('/lounas-hour/{restaurantId}/{branchId}/{id}', [\App\Http\Controllers\LounasHourController::class, 'update'])->name('lounas.update');
+    Route::delete('/lounas-hour/{restaurantId}/{branchId}/{id}', [\App\Http\Controllers\LounasHourController::class, 'destroy'])->name('lounas.destroy');
 
     // Settings and Context
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
