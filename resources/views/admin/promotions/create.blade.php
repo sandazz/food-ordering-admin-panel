@@ -124,6 +124,11 @@
         </div>
       </div>
 
+      <div class="mb-4">
+        <label for="promocode" class="form-label">Promocode (optional)</label>
+        <input type="text" id="promocode" name="promocode" class="form-control" value="{{ old('promocode') }}" maxlength="50" placeholder="e.g. SAVE10">
+      </div>
+
       <div class="d-flex gap-2">
         <button class="btn btn-primary" type="submit">Create Promotion</button>
         <a href="{{ route('promotions.index') }}" class="btn btn-outline-secondary">Cancel</a>

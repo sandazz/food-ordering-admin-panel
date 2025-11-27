@@ -48,6 +48,12 @@
   </div>
   <div class="row">
     <div class="col-md-6 mb-3">
+      <label class="form-label">Business ID</label>
+      <input type="text" name="businessId" class="form-control" value="{{ $branch['businessId'] ?? '' }}" placeholder="e.g. 123-456-789">
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
       <label class="form-label">Street</label>
       <input type="text" name="street" class="form-control" value="{{ $branch['address']['street'] ?? '' }}">
     </div>

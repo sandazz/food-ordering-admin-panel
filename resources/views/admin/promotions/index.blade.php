@@ -24,6 +24,7 @@
                             <th>Name</th>
                             <th>Status</th>
                             <th>Discount</th>
+                            <th>Promocode</th>
                             <th>Start</th>
                             <th>End</th>
                             <th>Actions</th>
@@ -45,6 +46,7 @@
                                 </td>
                                 <td><span class="badge bg-{{ $p['status'] === 'active' ? 'success' : 'secondary' }}">{{ ucfirst($p['status']) }}</span></td>
                                 <td>{{ $p['discount']['type'] === 'percent' ? $p['discount']['value'] . '%' : ('₹' . number_format($p['discount']['value'], 2)) }}</td>
+                                <td>{{ $p['promocode'] ?: '-' }}</td>
                                 <td>{{ $p['startsAt'] ? \Carbon\Carbon::parse($p['startsAt'])->format('Y-m-d') : '-' }}</td>
                                 <td>{{ $p['endsAt'] ? \Carbon\Carbon::parse($p['endsAt'])->format('Y-m-d') : '-' }}</td>
                                 <td>
@@ -57,7 +59,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="text-center text-muted">No promotions yet.</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted">No promotions yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -80,6 +82,7 @@
                                 <th>Name</th>
                                 <th>Status</th>
                                 <th>Discount</th>
+                                <th>Promocode</th>
                                 <th>Start</th>
                                 <th>End</th>
                                 <th>Actions</th>
@@ -101,6 +104,7 @@
                                     </td>
                                     <td><span class="badge bg-{{ $p['status'] === 'active' ? 'success' : 'secondary' }}">{{ ucfirst($p['status']) }}</span></td>
                                     <td>{{ $p['discount']['type'] === 'percent' ? $p['discount']['value'] . '%' : ('₹' . number_format($p['discount']['value'], 2)) }}</td>
+                                    <td>{{ $p['promocode'] ?: '-' }}</td>
                                     <td>{{ $p['startsAt'] ? \Carbon\Carbon::parse($p['startsAt'])->format('Y-m-d') : '-' }}</td>
                                     <td>{{ $p['endsAt'] ? \Carbon\Carbon::parse($p['endsAt'])->format('Y-m-d') : '-' }}</td>
                                     <td>
@@ -113,7 +117,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="6" class="text-center text-muted">No promotions.</td></tr>
+                                <tr><td colspan="7" class="text-center text-muted">No promotions.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

@@ -144,7 +144,18 @@ class FirebaseService
     public function updateDocument(string $collectionName, string $documentId, array $data)
     {
         $token = $this->getAccessToken();
-        $response = $this->performRequest('PATCH', "{$collectionName}/{$documentId}", [
+        // Build update mask so Firestore performs a partial update and preserves unspecified fields
+        $fieldPaths = array_keys($data);
+        $query = '';
+        if (!empty($fieldPaths)) {
+            // Append a query param for each field path
+            $maskParts = array_map(function ($f) {
+                return 'updateMask.fieldPaths=' . urlencode($f);
+            }, $fieldPaths);
+            $query = '?' . implode('&', $maskParts);
+        }
+
+        $response = $this->performRequest('PATCH', "{$collectionName}/{$documentId}{$query}", [
             'headers' => ['Authorization' => "Bearer {$token}"],
             'json' => ['fields' => $this->encodeFirestoreData($data)]
         ]);
@@ -158,6 +169,31 @@ class FirebaseService
             'headers' => ['Authorization' => "Bearer {$token}"]
         ]);
         return in_array($response->getStatusCode(), [200, 202, 204], true);
+    }
+
+    /**
+     * Update a Firebase Auth user's password using privileged service account access.
+     *
+     * @param string $localId The Firebase Auth UID (localId)
+     * @param string $newPassword New password to set
+     * @return bool True on success
+     */
+    public function updateUserPassword(string $localId, string $newPassword): bool
+    {
+        $token = $this->getAccessToken();
+        $uri = "https://identitytoolkit.googleapis.com/v1/projects/{$this->projectId}/accounts:update";
+        $client = new Client($this->guzzleOptions);
+        $res = $client->post($uri, [
+            'headers' => [
+                'Authorization' => "Bearer {$token}",
+                'Content-Type' => 'application/json',
+            ],
+            'json' => [
+                'localId' => $localId,
+                'password' => $newPassword,
+            ],
+        ]);
+        return in_array($res->getStatusCode(), [200], true);
     }
 
     /**
