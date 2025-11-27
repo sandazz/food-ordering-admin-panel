@@ -59,10 +59,22 @@
     <div class="list-group">
       @foreach($ingredients as $ing)
         @php($checked = $selIngMap->has($ing['id']))
-        <label class="list-group-item d-flex align-items-center" style="gap:.5rem;">
-          <input type="checkbox" name="ingredients[{{ $ing['id'] }}]" value="1" {{ $checked ? 'checked' : '' }}>
-          <span style="min-width:160px;">{{ $ing['name'] }}</span>
-        </label>
+        <div class="list-group-item">
+          <label class="d-flex align-items-center" style="gap:.5rem;">
+            <input type="checkbox" name="ingredients[{{ $ing['id'] }}]" value="1" {{ $checked ? 'checked' : '' }} onchange="toggleIngredient(this)">
+            <span style="min-width:160px;">{{ $ing['name'] }}</span>
+          </label>
+          @if(!empty($sizes))
+          <div class="mt-2 ing-size-grid" data-ingredient="{{ $ing['id'] }}" style="{{ $checked ? '' : 'display:none;' }}">
+            @foreach($sizes as $s)
+              <div class="d-flex align-items-center mb-1 ing-size-row" data-size="{{ $s['id'] }}" style="gap:.5rem; display:none;">
+                <span class="text-muted" style="min-width:120px;">{{ $s['name'] }}</span>
+                <input type="number" min="0" step="1" name="ingredients_max[{{ $ing['id'] }}][{{ $s['id'] }}]" class="form-control form-control-sm" style="max-width:140px;" placeholder="Max (0=all)" value="{{ $checked ? (data_get($selIngMap[$ing['id']], 'sizeMax.'.$s['id']) ?? '') : '' }}">
+              </div>
+            @endforeach
+          </div>
+          @endif
+        </div>
       @endforeach
     </div>
   </div>
@@ -70,6 +82,10 @@
   <div class="mb-3">
     <label class="form-label">{{ \App\Utils\UIStrings::t('field.item_price_optional') }}</label>
     <input type="number" step="0.01" name="price" class="form-control" value="{{ $item['price'] }}" placeholder="{{ \App\Utils\UIStrings::t('placeholder.item_price_hint') }}">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Offer Price (optional)</label>
+    <input type="number" step="0.01" name="offerPrice" class="form-control" value="{{ $item['offerPrice'] ?? '' }}" placeholder="Enter promotional/discounted price">
   </div>
   <div class="mb-3 form-check">
     <input type="checkbox" class="form-check-input" name="available" value="1" id="available" {{ $item['available'] ? 'checked' : '' }}>
@@ -104,5 +120,68 @@ function toggleInline(cb){
   var input = cb.parentElement.querySelector('input[type=number]');
   if(input){ input.style.display = cb.checked ? '' : 'none'; }
 }
+function isSizeSelected(sizeId){
+  var checks = document.querySelectorAll('input[name^="sizes["]');
+  for(var i=0;i<checks.length;i++){
+    var nm = checks[i].name;
+    var sid = nm.substring(nm.indexOf('[')+1, nm.lastIndexOf(']'));
+    if(sid === String(sizeId)){
+      return !!checks[i].checked;
+    }
+  }
+  return false;
+}
+function toggleIngredient(cb){
+  var wrap = cb.closest('.list-group-item').querySelector('.ing-size-grid');
+  if(wrap){
+    if(cb.checked){
+      wrap.style.display = '';
+      wrap.querySelectorAll('.ing-size-row').forEach(function(row){
+        var sz = row.getAttribute('data-size');
+        row.style.display = isSizeSelected(sz) ? '' : 'none';
+      });
+      // hide entire grid if no rows visible
+      var anyShown = Array.prototype.some.call(wrap.querySelectorAll('.ing-size-row'), function(row){ return row.style.display !== 'none'; });
+      wrap.style.display = anyShown ? '' : 'none';
+    } else {
+      wrap.style.display = 'none';
+    }
+  }
+  syncSizeVisibility();
+}
+function syncSizeVisibility(){
+  document.querySelectorAll('.ing-size-grid').forEach(function(grid){
+    var anyShown = false;
+    grid.querySelectorAll('.ing-size-row').forEach(function(row){
+      var sz = row.getAttribute('data-size');
+      var show = isSizeSelected(sz);
+      row.style.display = show ? '' : 'none';
+      if(show){ anyShown = true; }
+    });
+    var cb = grid.closest('.list-group-item').querySelector('input[type="checkbox"][name^="ingredients["]');
+    if(cb && cb.checked && anyShown){
+      grid.style.display = '';
+    } else {
+      grid.style.display = 'none';
+    }
+  });
+}
+document.addEventListener('change', function(e){
+  if(e.target && e.target.name && e.target.name.startsWith('sizes[')){
+    // if a size is unchecked, clear its values across all ingredients
+    var m = e.target.name.match(/sizes\[(.+)\]/);
+    if(m){
+      var sizeId = m[1];
+      if(!e.target.checked){
+        document.querySelectorAll('input[name^="ingredients_max["]').forEach(function(inp){
+          var re = new RegExp('ingredients_max\\\[[^\\]]+\\\]\\\['+sizeId+'\\\]');
+          if(re.test(inp.name)){ inp.value = ''; }
+        });
+      }
+    }
+    syncSizeVisibility();
+  }
+});
+document.addEventListener('DOMContentLoaded', function(){ syncSizeVisibility(); });
 </script>
 @endsection

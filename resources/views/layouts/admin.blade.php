@@ -661,6 +661,10 @@
                 <i class="bi bi-stars"></i>
                 Promotions
             </a>
+            <a href="{{ url('/admin/lounas-hour') }}" class="{{ request()->is('admin/lounas-hour*') ? 'active' : '' }}">
+                <i class="bi bi-clock-history"></i>
+                Lounas Hour
+            </a>
             <a href="{{ url('/admin/reports') }}" class="{{ request()->is('admin/reports') ? 'active' : '' }}">
                 <i class="bi bi-graph-up"></i>
                 {{ \App\Utils\UIStrings::t('nav.reports') }}

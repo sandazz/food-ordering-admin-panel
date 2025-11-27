@@ -16,6 +16,7 @@
   <thead>
     <tr>
       <th>Name</th>
+      <th>Business ID</th>
       <th>Status</th>
       <th style="width:240px"></th>
     </tr>
@@ -24,6 +25,7 @@
     @foreach($branches as $b)
       <tr>
         <td>{{ $b['name'] }}</td>
+        <td>{{ $b['businessId'] ?? '-' }}</td>
         <td>{{ $b['status'] }}</td>
         <td class="text-end">
           @if(session('role') === 'admin' || session('role') === 'restaurant_admin')

@@ -22,6 +22,12 @@
   </div>
   <div class="row">
     <div class="col-md-6 mb-3">
+      <label class="form-label">Business ID</label>
+      <input type="text" name="businessId" class="form-control" value="{{ old('businessId') }}" placeholder="e.g. 123-456-789">
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
       <label class="form-label">Street</label>
       <input type="text" name="street" class="form-control" required>
     </div>

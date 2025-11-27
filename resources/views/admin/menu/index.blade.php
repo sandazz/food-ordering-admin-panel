@@ -40,7 +40,7 @@
                   <th>{{ \App\Utils\UIStrings::t('common.name') }}</th>
                   <th style="width:120px">{{ \App\Utils\UIStrings::t('common.price') }}</th>
                   <th style="width:100px">{{ \App\Utils\UIStrings::t('common.available') }}</th>
-                  <th style="width:220px"></th>
+                  <th style="width:320px"></th>
                 </tr>
               </thead>
               <tbody>
@@ -51,6 +51,15 @@
                     <td>{{ $item['available'] ? \App\Utils\UIStrings::t('common.yes') : \App\Utils\UIStrings::t('common.no') }}</td>
                     <td class="text-end">
                       <a class="btn btn-sm btn-outline-secondary" href="{{ route('menu.items.edit', [$cat['id'], $item['id']]) }}">{{ \App\Utils\UIStrings::t('common.edit') }}</a>
+                      <form action="{{ route('menu.items.toggle', [$cat['id'], $item['id']]) }}" method="POST" class="d-inline">
+                        @csrf
+                        @method('PATCH')
+                        @if($item['available'])
+                          <button class="btn btn-sm btn-outline-warning">Unavailable</button>
+                        @else
+                          <button class="btn btn-sm btn-outline-success">Available</button>
+                        @endif
+                      </form>
                       <form action="{{ route('menu.items.destroy', [$cat['id'], $item['id']]) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ \App\Utils\UIStrings::t('menu.item.delete_confirm') }}')">
                         @csrf
                         @method('DELETE')
