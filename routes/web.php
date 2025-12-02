@@ -17,6 +17,7 @@ use App\Http\Controllers\SizesController;
 use App\Http\Controllers\BasesController;
 use App\Http\Controllers\PromotionsController;
 use App\Http\Controllers\IngredientsController;
+use App\Http\Controllers\AuditLogController;
 
 // Redirect root to selection if logged in without restaurant, otherwise admin or login
 Route::get('/', function() {
@@ -38,7 +39,7 @@ Route::get('/reset-password', [AuthController::class, 'showResetPassword'])->nam
 Route::post('/reset-password', [AuthController::class, 'handleResetPassword'])->name('password.update');
 
 // Admin panel routes
-Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::class, \App\Http\Middleware\RestaurantAdminMiddleware::class])->group(function () {
+Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::class, \App\Http\Middleware\RestaurantAdminMiddleware::class, \App\Http\Middleware\AdminAuditMiddleware::class])->group(function () {
     Route::get('/', [AdminController::class, 'dashboard']);
     Route::get('/orders', [OrdersController::class, 'index'])->name('orders.index');
     // Menu Categories & Items
@@ -164,6 +165,9 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::
     Route::get('/settings/restaurant-admins/{userId}/edit', [RestaurantAdminController::class, 'edit'])->name('settings.restaurant_admins.edit');
     Route::put('/settings/restaurant-admins/{userId}', [RestaurantAdminController::class, 'update'])->name('settings.restaurant_admins.update');
     Route::delete('/settings/restaurant-admins/{userId}', [RestaurantAdminController::class, 'destroy'])->name('settings.restaurant_admins.destroy');
+
+    // Audit Logs
+    Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit.index');
 });
 
 

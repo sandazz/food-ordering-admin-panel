@@ -228,7 +228,7 @@ class MenuController extends Controller
         if ($request->hasFile('image')) {
             $imageUrl = $this->storePublicUpload($request->file('image'), 'categories');
         }
-        $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus", $categoryId, [
+        $payload = [
             'name' => $data['name_en'],
             'name_en' => $data['name_en'],
             'name_fi' => $data['name_fi'],
@@ -238,7 +238,26 @@ class MenuController extends Controller
             'displayOrder' => (int) ($data['displayOrder'] ?? 0),
             'isSpecial' => (bool) ($data['isSpecial'] ?? false),
             'imageUrl' => $imageUrl,
-        ]);
+        ];
+        $existing = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus", $categoryId);
+        $f = $existing['fields'] ?? [];
+        $decode = function($v) use (&$decode) {
+            if (!is_array($v)) return $v;
+            if (isset($v['stringValue'])) return $v['stringValue'];
+            if (isset($v['integerValue'])) return (int)$v['integerValue'];
+            if (isset($v['doubleValue'])) return (float)$v['doubleValue'];
+            if (isset($v['booleanValue'])) return (bool)$v['booleanValue'];
+            if (isset($v['nullValue'])) return null;
+            if (isset($v['arrayValue']['values'])) return array_map($decode, $v['arrayValue']['values']);
+            if (isset($v['mapValue']['fields'])) { $out=[]; foreach ($v['mapValue']['fields'] as $kk=>$vv){ $out[$kk]=$decode($vv);} return $out; }
+            return $v;
+        };
+        $before = [];
+        $after = [];
+        foreach ($payload as $k=>$v) { if (array_key_exists($k,$f)) { $before[$k]=$decode($f[$k]); } $after[$k]=$v; }
+        $request->attributes->set('audit_before', $before);
+        $request->attributes->set('audit_after', $after);
+        $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus", $categoryId, $payload);
         return redirect()->route('menu.index')->with('status', 'Category updated');
     }
 
@@ -752,6 +771,15 @@ class MenuController extends Controller
         if (array_key_exists('offerPrice', $data) && $data['offerPrice'] !== null && $data['offerPrice'] !== '') {
             $payload['offerPrice'] = (float)$data['offerPrice'];
         }
+        // Attach before/after for item
+        $existing = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId);
+        $f = $existing['fields'] ?? [];
+        $decode = function($v) use (&$decode) { if (!is_array($v)) return $v; if (isset($v['stringValue'])) return $v['stringValue']; if (isset($v['integerValue'])) return (int)$v['integerValue']; if (isset($v['doubleValue'])) return (float)$v['doubleValue']; if (isset($v['booleanValue'])) return (bool)$v['booleanValue']; if (isset($v['nullValue'])) return null; if (isset($v['arrayValue']['values'])) return array_map($decode, $v['arrayValue']['values']); if (isset($v['mapValue']['fields'])) { $out=[]; foreach ($v['mapValue']['fields'] as $kk=>$vv){ $out[$kk]=$decode($vv);} return $out;} return $v; };
+        $before = [];
+        $after = [];
+        foreach ($payload as $k=>$v) { if (array_key_exists($k,$f)) { $before[$k]=$decode($f[$k]); } $after[$k]=$v; }
+        $request->attributes->set('audit_before', $before);
+        $request->attributes->set('audit_after', $after);
         $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId, $payload);
         // Replace subcollections: delete existing then create new
         $existingSizes = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items/{$itemId}/sizes");
@@ -851,6 +879,10 @@ class MenuController extends Controller
         $doc = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId);
         $f = $doc['fields'] ?? [];
         $available = (bool) ($f['available']['booleanValue'] ?? true);
+        $before = ['available' => $available];
+        $after = ['available' => !$available];
+        $request->attributes->set('audit_before', $before);
+        $request->attributes->set('audit_after', $after);
         $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId, [
             'available' => !$available,
         ]);

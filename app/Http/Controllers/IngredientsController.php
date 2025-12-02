@@ -240,14 +240,23 @@ class IngredientsController extends Controller
             'description_en' => 'nullable|string|max:500',
             'description_fi' => 'nullable|string|max:500',
         ]);
-        $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/ingredients", $id, [
+        $payload = [
             'name' => $data['name_en'],
             'name_en' => $data['name_en'],
             'name_fi' => $data['name_fi'],
             'description' => $data['description_en'] ?? '',
             'description_en' => $data['description_en'] ?? '',
             'description_fi' => $data['description_fi'] ?? '',
-        ]);
+        ];
+        $existing = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/ingredients", $id);
+        $f = $existing['fields'] ?? [];
+        $decode = function($v) use (&$decode) { if (!is_array($v)) return $v; if (isset($v['stringValue'])) return $v['stringValue']; if (isset($v['integerValue'])) return (int)$v['integerValue']; if (isset($v['doubleValue'])) return (float)$v['doubleValue']; if (isset($v['booleanValue'])) return (bool)$v['booleanValue']; if (isset($v['nullValue'])) return null; if (isset($v['arrayValue']['values'])) return array_map($decode, $v['arrayValue']['values']); if (isset($v['mapValue']['fields'])) { $out=[]; foreach ($v['mapValue']['fields'] as $kk=>$vv){ $out[$kk]=$decode($vv);} return $out;} return $v; };
+        $before = [];
+        $after = [];
+        foreach ($payload as $k=>$v) { if (array_key_exists($k,$f)) { $before[$k]=$decode($f[$k]); } $after[$k]=$v; }
+        $request->attributes->set('audit_before', $before);
+        $request->attributes->set('audit_after', $after);
+        $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/ingredients", $id, $payload);
         return redirect()->route('menu.ingredients.index')->with('status', 'Ingredient updated');
     }
 
@@ -342,7 +351,7 @@ class IngredientsController extends Controller
             'description_fi' => 'nullable|string|max:500',
             'price' => 'required|numeric|min:0',
         ]);
-        $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/ingredients/{$ingredientId}/subingredients", $subId, [
+        $payload = [
             'name' => $data['name_en'],
             'name_en' => $data['name_en'],
             'name_fi' => $data['name_fi'],
@@ -350,7 +359,16 @@ class IngredientsController extends Controller
             'description_en' => $data['description_en'] ?? '',
             'description_fi' => $data['description_fi'] ?? '',
             'price' => (float)$data['price'],
-        ]);
+        ];
+        $existing = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/ingredients/{$ingredientId}/subingredients", $subId);
+        $f = $existing['fields'] ?? [];
+        $decode = function($v) use (&$decode) { if (!is_array($v)) return $v; if (isset($v['stringValue'])) return $v['stringValue']; if (isset($v['integerValue'])) return (int)$v['integerValue']; if (isset($v['doubleValue'])) return (float)$v['doubleValue']; if (isset($v['booleanValue'])) return (bool)$v['booleanValue']; if (isset($v['nullValue'])) return null; if (isset($v['arrayValue']['values'])) return array_map($decode, $v['arrayValue']['values']); if (isset($v['mapValue']['fields'])) { $out=[]; foreach ($v['mapValue']['fields'] as $kk=>$vv){ $out[$kk]=$decode($vv);} return $out;} return $v; };
+        $before = [];
+        $after = [];
+        foreach ($payload as $k=>$v) { if (array_key_exists($k,$f)) { $before[$k]=$decode($f[$k]); } $after[$k]=$v; }
+        $request->attributes->set('audit_before', $before);
+        $request->attributes->set('audit_after', $after);
+        $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/ingredients/{$ingredientId}/subingredients", $subId, $payload);
         return redirect()->route('menu.ingredients.index')->with('status', 'Sub-ingredient updated');
     }
 

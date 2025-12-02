@@ -316,12 +316,31 @@ class StaffController extends Controller
         if (!$restaurantId || !$branchId) {
             return redirect()->route('settings.context')->with('status', 'Select restaurant and branch first.');
         }
-        $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/staff", $staffId, [
+        $payload = [
             'name' => $data['name'],
             'email' => $data['email'],
             'role' => $data['role'],
             'isActive' => (bool)($data['isActive'] ?? true),
-        ]);
+        ];
+        $existing = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/staff", $staffId);
+        $f = $existing['fields'] ?? [];
+        $decode = function($v) use (&$decode) {
+            if (!is_array($v)) return $v;
+            if (isset($v['stringValue'])) return $v['stringValue'];
+            if (isset($v['integerValue'])) return (int)$v['integerValue'];
+            if (isset($v['doubleValue'])) return (float)$v['doubleValue'];
+            if (isset($v['booleanValue'])) return (bool)$v['booleanValue'];
+            if (isset($v['nullValue'])) return null;
+            if (isset($v['arrayValue']['values'])) return array_map($decode, $v['arrayValue']['values']);
+            if (isset($v['mapValue']['fields'])) { $out=[]; foreach ($v['mapValue']['fields'] as $kk=>$vv){ $out[$kk]=$decode($vv);} return $out; }
+            return $v;
+        };
+        $before = [];
+        $after = [];
+        foreach ($payload as $k=>$v) { if (array_key_exists($k,$f)) { $before[$k]=$decode($f[$k]); } $after[$k]=$v; }
+        $request->attributes->set('audit_before', $before);
+        $request->attributes->set('audit_after', $after);
+        $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/staff", $staffId, $payload);
         return redirect()->route('staff.index')->with('status', 'Staff updated');
     }
 

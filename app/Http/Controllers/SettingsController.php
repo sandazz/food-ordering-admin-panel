@@ -259,14 +259,40 @@ class SettingsController extends Controller
         if ($request->hasFile('logo')) {
             $logoUrl = $this->storePublicUpload($request->file('logo'), 'restaurants');
         }
-        $firebase->updateDocument('restaurants', $restaurantId, [
+        $payload = [
             'name' => $data['name'],
             'description' => $data['description'] ?? '',
             'logoUrl' => $logoUrl,
             'taxRate' => (float)($data['taxRate'] ?? 0), 
             'serviceCharge' => (float)($data['serviceCharge'] ?? 0),
             'status' => $data['status'],
-        ]);
+        ];
+        $existing = $firebase->getDocument('restaurants', $restaurantId);
+        $f = $existing['fields'] ?? [];
+        $decode = function($v) use (&$decode) {
+            if (!is_array($v)) return $v;
+            if (isset($v['stringValue'])) return $v['stringValue'];
+            if (isset($v['integerValue'])) return (int)$v['integerValue'];
+            if (isset($v['doubleValue'])) return (float)$v['doubleValue'];
+            if (isset($v['booleanValue'])) return (bool)$v['booleanValue'];
+            if (isset($v['nullValue'])) return null;
+            if (isset($v['arrayValue']['values'])) return array_map($decode, $v['arrayValue']['values']);
+            if (isset($v['mapValue']['fields'])) {
+                $out = [];
+                foreach ($v['mapValue']['fields'] as $kk => $vv) { $out[$kk] = $decode($vv); }
+                return $out;
+            }
+            return $v;
+        };
+        $before = [];
+        $after = [];
+        foreach ($payload as $k => $v) {
+            if (array_key_exists($k, $f)) { $before[$k] = $decode($f[$k]); }
+            $after[$k] = $v;
+        }
+        $request->attributes->set('audit_before', $before);
+        $request->attributes->set('audit_after', $after);
+        $firebase->updateDocument('restaurants', $restaurantId, $payload);
         return redirect()->route('settings.context')->with('status', 'Restaurant updated');
     }
 
@@ -364,7 +390,7 @@ class SettingsController extends Controller
         if ($request->hasFile('image')) {
             $imageUrl = $this->storePublicUpload($request->file('image'), 'branches');
         }
-        $firebase->updateDocument("restaurants/{$restaurantId}/branches", $branchId, [
+        $payload = [
             'name' => $data['name'],
             'contact' => $data['contact'] ?? '',
             'status' => $data['status'],
@@ -377,7 +403,33 @@ class SettingsController extends Controller
                 'zipCode' => $data['zipCode'] ?? '',
                 'country' => $data['country'] ?? '',
             ],
-        ]);
+        ];
+        $existing = $firebase->getDocument("restaurants/{$restaurantId}/branches", $branchId);
+        $f = $existing['fields'] ?? [];
+        $decode = function($v) use (&$decode) {
+            if (!is_array($v)) return $v;
+            if (isset($v['stringValue'])) return $v['stringValue'];
+            if (isset($v['integerValue'])) return (int)$v['integerValue'];
+            if (isset($v['doubleValue'])) return (float)$v['doubleValue'];
+            if (isset($v['booleanValue'])) return (bool)$v['booleanValue'];
+            if (isset($v['nullValue'])) return null;
+            if (isset($v['arrayValue']['values'])) return array_map($decode, $v['arrayValue']['values']);
+            if (isset($v['mapValue']['fields'])) {
+                $out = [];
+                foreach ($v['mapValue']['fields'] as $kk => $vv) { $out[$kk] = $decode($vv); }
+                return $out;
+            }
+            return $v;
+        };
+        $before = [];
+        $after = [];
+        foreach ($payload as $k => $v) {
+            if (array_key_exists($k, $f)) { $before[$k] = $decode($f[$k]); }
+            $after[$k] = $v;
+        }
+        $request->attributes->set('audit_before', $before);
+        $request->attributes->set('audit_after', $after);
+        $firebase->updateDocument("restaurants/{$restaurantId}/branches", $branchId, $payload);
         return redirect()->route('settings.branches', $restaurantId)->with('status', 'Branch updated');
     }
 

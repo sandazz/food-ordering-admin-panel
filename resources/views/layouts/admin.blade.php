@@ -669,6 +669,10 @@
                 <i class="bi bi-graph-up"></i>
                 {{ \App\Utils\UIStrings::t('nav.reports') }}
             </a>
+            <a href="{{ route('audit.index') }}" class="{{ request()->is('admin/audit-logs') ? 'active' : '' }}">
+                <i class="bi bi-shield-check"></i>
+                Audit Logs
+            </a>
             @if(session('role') !== 'branch_admin')
             <a href="{{ url('/admin/notifications') }}" class="{{ request()->is('admin/notifications') ? 'active' : '' }}">
                 <i class="bi bi-bell"></i>
