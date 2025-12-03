@@ -42,6 +42,7 @@ Route::post('/reset-password', [AuthController::class, 'handleResetPassword'])->
 Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::class, \App\Http\Middleware\RestaurantAdminMiddleware::class, \App\Http\Middleware\AdminAuditMiddleware::class])->group(function () {
     Route::get('/', [AdminController::class, 'dashboard']);
     Route::get('/orders', [OrdersController::class, 'index'])->name('orders.index');
+    Route::get('/orders/ajax', [OrdersController::class, 'getOrdersAjax'])->name('orders.ajax');
     // Menu Categories & Items
     Route::get('/menu', [MenuController::class, 'index'])->name('menu.index');
     // Menu Sizes
