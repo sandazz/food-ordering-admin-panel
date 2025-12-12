@@ -81,8 +81,8 @@
     <input type="number" step="0.01" name="offerPrice" class="form-control" placeholder="Enter promotional/discounted price">
   </div>
   <div class="mb-3 form-check">
-    <input type="checkbox" class="form-check-input" name="available" value="1" checked id="available">
-    <label class="form-check-label" for="available">{{ \App\Utils\UIStrings::t('field.available') }}</label>
+    <input type="checkbox" class="form-check-input" name="availability" value="1" checked id="availability">
+    <label class="form-check-label" for="availability">{{ \App\Utils\UIStrings::t('field.available') }}</label>
   </div>
   <div class="mb-3">
     <label class="form-label">{{ \App\Utils\UIStrings::t('field.image_url') }}</label>
