@@ -223,13 +223,32 @@ class SizesController extends Controller
         $coll = $branchId
             ? "restaurants/{$restaurantId}/branches/{$branchId}/sizes"
             : "restaurants/{$restaurantId}/sizes";
-        $firebase->updateDocument($coll, $id, [
+        $payload = [
             'name' => $data['name_en'],
             'name_en' => $data['name_en'],
             'name_fi' => $data['name_fi'],
             'price' => (float)$data['price'],
             'isActive' => (bool)($data['isActive'] ?? true),
-        ]);
+        ];
+        $existing = $firebase->getDocument($coll, $id);
+        $f = $existing['fields'] ?? [];
+        $decode = function($v) use (&$decode) {
+            if (!is_array($v)) return $v;
+            if (isset($v['stringValue'])) return $v['stringValue'];
+            if (isset($v['integerValue'])) return (int)$v['integerValue'];
+            if (isset($v['doubleValue'])) return (float)$v['doubleValue'];
+            if (isset($v['booleanValue'])) return (bool)$v['booleanValue'];
+            if (isset($v['nullValue'])) return null;
+            if (isset($v['arrayValue']['values'])) return array_map($decode, $v['arrayValue']['values']);
+            if (isset($v['mapValue']['fields'])) { $out=[]; foreach ($v['mapValue']['fields'] as $kk=>$vv){ $out[$kk]=$decode($vv);} return $out; }
+            return $v;
+        };
+        $before = [];
+        $after = [];
+        foreach ($payload as $k=>$v) { if (array_key_exists($k,$f)) { $before[$k]=$decode($f[$k]); } $after[$k]=$v; }
+        $request->attributes->set('audit_before', $before);
+        $request->attributes->set('audit_after', $after);
+        $firebase->updateDocument($coll, $id, $payload);
         return redirect()->route('menu.sizes.index')->with('status', 'Size updated');
     }
 

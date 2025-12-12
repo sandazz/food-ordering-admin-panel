@@ -157,6 +157,13 @@
                     <a class="nav-link" href="#menu">Menu</a>
                 </li>
                 <li class="nav-item">
+                    @if(session('restaurantId'))
+                        <a class="nav-link" href="{{ url('/admin/settings/restaurants/' . session('restaurantId') . '/branches') }}">Branches</a>
+                    @else
+                        <a class="nav-link" href="{{ url('/admin/settings/restaurants') }}">Branches</a>
+                    @endif
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="#about">About</a>
                 </li>
                 <li class="nav-item">

@@ -17,6 +17,8 @@ use App\Http\Controllers\SizesController;
 use App\Http\Controllers\BasesController;
 use App\Http\Controllers\PromotionsController;
 use App\Http\Controllers\IngredientsController;
+use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\PaymentConfigController;
 
 // Redirect root to selection if logged in without restaurant, otherwise admin or login
 Route::get('/', function() {
@@ -38,9 +40,10 @@ Route::get('/reset-password', [AuthController::class, 'showResetPassword'])->nam
 Route::post('/reset-password', [AuthController::class, 'handleResetPassword'])->name('password.update');
 
 // Admin panel routes
-Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::class, \App\Http\Middleware\RestaurantAdminMiddleware::class])->group(function () {
+Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::class, \App\Http\Middleware\RestaurantAdminMiddleware::class, \App\Http\Middleware\AdminAuditMiddleware::class])->group(function () {
     Route::get('/', [AdminController::class, 'dashboard']);
     Route::get('/orders', [OrdersController::class, 'index'])->name('orders.index');
+    Route::get('/orders/ajax', [OrdersController::class, 'getOrdersAjax'])->name('orders.ajax');
     // Menu Categories & Items
     Route::get('/menu', [MenuController::class, 'index'])->name('menu.index');
     // Menu Sizes
@@ -164,6 +167,9 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::
     Route::get('/settings/restaurant-admins/{userId}/edit', [RestaurantAdminController::class, 'edit'])->name('settings.restaurant_admins.edit');
     Route::put('/settings/restaurant-admins/{userId}', [RestaurantAdminController::class, 'update'])->name('settings.restaurant_admins.update');
     Route::delete('/settings/restaurant-admins/{userId}', [RestaurantAdminController::class, 'destroy'])->name('settings.restaurant_admins.destroy');
+
+    // Audit Logs
+    Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit.index');
 });
 
 
@@ -173,4 +179,14 @@ Route::get('/debug-middleware', function () {
     $kernel = app(\Illuminate\Contracts\Http\Kernel::class);
     $aliases = $kernel->getMiddlewareAliases();
     return response()->json($aliases);
+});
+
+// API (session-auth) for payment configs
+Route::prefix('api/v1')->middleware([\App\Http\Middleware\AdminMiddleware::class, \App\Http\Middleware\BranchAdminMiddleware::class, \App\Http\Middleware\RestaurantAdminMiddleware::class, \App\Http\Middleware\AdminAuditMiddleware::class])->group(function () {
+    Route::get('/payment-configs', [PaymentConfigController::class, 'index']); // super admin only
+    Route::get('/payment-configs/{restaurantId}/{branchId}', [PaymentConfigController::class, 'show']);
+    Route::match(['put','patch'], '/payment-configs/{restaurantId}/{branchId}', [PaymentConfigController::class, 'upsert']);
+    // Payment initiation and webhook
+    Route::post('/payments/initiate', [\App\Http\Controllers\PaymentController::class, 'initiate']);
+    Route::post('/payments/webhook', [\App\Http\Controllers\PaymentController::class, 'webhook']);
 });

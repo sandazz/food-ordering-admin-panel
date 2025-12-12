@@ -26,7 +26,7 @@
       @foreach($sizes as $s)
         <label class="list-group-item d-flex align-items-center" style="gap:.5rem;">
           <input type="checkbox" name="sizes[{{ $s['id'] }}]" value="1" onchange="toggleInline(this)">
-          <span style="min-width:160px;">{{ $s['name'] }} ({{ number_format($s['price'],2) }})</span>
+          <span style="min-width:160px;">{{ $s['name'] }} (€{{ number_format($s['price'],2) }})</span>
           <input type="number" step="0.01" min="0" name="sizes_price[{{ $s['id'] }}]" class="form-control form-control-sm" style="max-width:160px; display:none;" placeholder="{{ \App\Utils\UIStrings::t('placeholder.price_override_optional') }}">
         </label>
       @endforeach
@@ -40,7 +40,7 @@
       @foreach($bases as $b)
         <label class="list-group-item d-flex align-items-center" style="gap:.5rem;">
           <input type="checkbox" name="bases[{{ $b['id'] }}]" value="1" onchange="toggleInline(this)">
-          <span style="min-width:160px;">{{ $b['name'] }} ({{ number_format($b['price'],2) }})</span>
+          <span style="min-width:160px;">{{ $b['name'] }} (€{{ number_format($b['price'],2) }})</span>
           <input type="number" step="0.01" min="0" name="bases_price[{{ $b['id'] }}]" class="form-control form-control-sm" style="max-width:160px; display:none;" placeholder="{{ \App\Utils\UIStrings::t('placeholder.price_override_optional') }}">
         </label>
       @endforeach

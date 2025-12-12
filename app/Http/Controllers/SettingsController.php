@@ -6,6 +6,7 @@ use App\Services\FirebaseService;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Crypt;
 
 class SettingsController extends Controller
 {
@@ -259,14 +260,40 @@ class SettingsController extends Controller
         if ($request->hasFile('logo')) {
             $logoUrl = $this->storePublicUpload($request->file('logo'), 'restaurants');
         }
-        $firebase->updateDocument('restaurants', $restaurantId, [
+        $payload = [
             'name' => $data['name'],
             'description' => $data['description'] ?? '',
             'logoUrl' => $logoUrl,
             'taxRate' => (float)($data['taxRate'] ?? 0), 
             'serviceCharge' => (float)($data['serviceCharge'] ?? 0),
             'status' => $data['status'],
-        ]);
+        ];
+        $existing = $firebase->getDocument('restaurants', $restaurantId);
+        $f = $existing['fields'] ?? [];
+        $decode = function($v) use (&$decode) {
+            if (!is_array($v)) return $v;
+            if (isset($v['stringValue'])) return $v['stringValue'];
+            if (isset($v['integerValue'])) return (int)$v['integerValue'];
+            if (isset($v['doubleValue'])) return (float)$v['doubleValue'];
+            if (isset($v['booleanValue'])) return (bool)$v['booleanValue'];
+            if (isset($v['nullValue'])) return null;
+            if (isset($v['arrayValue']['values'])) return array_map($decode, $v['arrayValue']['values']);
+            if (isset($v['mapValue']['fields'])) {
+                $out = [];
+                foreach ($v['mapValue']['fields'] as $kk => $vv) { $out[$kk] = $decode($vv); }
+                return $out;
+            }
+            return $v;
+        };
+        $before = [];
+        $after = [];
+        foreach ($payload as $k => $v) {
+            if (array_key_exists($k, $f)) { $before[$k] = $decode($f[$k]); }
+            $after[$k] = $v;
+        }
+        $request->attributes->set('audit_before', $before);
+        $request->attributes->set('audit_after', $after);
+        $firebase->updateDocument('restaurants', $restaurantId, $payload);
         return redirect()->route('settings.context')->with('status', 'Restaurant updated');
     }
 
@@ -285,7 +312,8 @@ class SettingsController extends Controller
 
     public function createBranch(string $restaurantId)
     {
-        return view('admin.settings.branches.create', compact('restaurantId'));
+        $paymentConfig = null;
+        return view('admin.settings.branches.create', compact('restaurantId', 'paymentConfig'));
     }
 
     public function storeBranch(Request $request, FirebaseService $firebase, string $restaurantId)
@@ -301,12 +329,20 @@ class SettingsController extends Controller
             'zipCode' => 'nullable|string|max:30',
             'country' => 'nullable|string|max:120',
             'image' => 'nullable|image|max:4096',
+            // Optional payment gateway credentials for branch
+            // If either merchant_id or secret_key is present, require the other
+            'merchant_id' => 'nullable|required_with:secret_key|string|max:255',
+            'secret_key' => 'nullable|required_with:merchant_id|string',
+            'is_active' => 'nullable|boolean',
+            'gateway_name' => 'nullable|string|max:100',
         ]);
+
         $branchId = 'branch_' . Str::random(6);
         $imageUrl = '';
         if ($request->hasFile('image')) {
             $imageUrl = $this->storePublicUpload($request->file('image'), 'branches');
         }
+
         $firebase->createDocument("restaurants/{$restaurantId}/branches", [
             'name' => $data['name'],
             'contact' => $data['contact'] ?? '',
@@ -321,6 +357,22 @@ class SettingsController extends Controller
                 'country' => $data['country'] ?? '',
             ],
         ], $branchId);
+
+        // If payment credentials provided, attach paymentConfig map inside the branch document
+        if (!empty($data['merchant_id']) && !empty($data['secret_key'])) {
+            $now = now()->toIso8601String();
+            $pcPayload = [
+                'gatewayName' => $data['gateway_name'] ?? 'Paytrail',
+                'merchantId' => $data['merchant_id'],
+                'secretKeyEnc' => Crypt::encryptString($data['secret_key']),
+                'isActive' => isset($data['is_active']) ? (bool)$data['is_active'] : true,
+                'createdAt' => $now,
+                'updatedAt' => $now,
+            ];
+            // updateDocument accepts associative arrays and will convert to Firestore map
+            $firebase->updateDocument("restaurants/{$restaurantId}/branches", $branchId, ['paymentConfig' => $pcPayload]);
+        }
+
         return redirect()->route('settings.branches', $restaurantId)->with('status', 'Branch created');
     }
 
@@ -343,7 +395,20 @@ class SettingsController extends Controller
                 'country' => $f['address']['mapValue']['fields']['country']['stringValue'] ?? '',
             ],
         ];
-        return view('admin.settings.branches.edit', compact('branch','restaurantId'));
+
+        // Fetch paymentConfig inside branch doc (if any)
+        $paymentConfig = null;
+        if (!empty($f['paymentConfig'])) {
+            $pcf = $f['paymentConfig']['mapValue']['fields'] ?? [];
+            $paymentConfig = [
+                'merchant_id' => $pcf['merchantId']['stringValue'] ?? '',
+                // Do not expose current secret to the form; require explicit change to replace secret
+                'secret_key' => null,
+                'gateway_name' => $pcf['gatewayName']['stringValue'] ?? 'Paytrail',
+                'is_active' => isset($pcf['isActive']['booleanValue']) ? (bool)$pcf['isActive']['booleanValue'] : true,
+            ];
+        }
+        return view('admin.settings.branches.edit', compact('branch','restaurantId','paymentConfig'));
     }
 
     public function updateBranch(Request $request, FirebaseService $firebase, string $restaurantId, string $branchId)
@@ -359,12 +424,17 @@ class SettingsController extends Controller
             'zipCode' => 'nullable|string|max:30',
             'country' => 'nullable|string|max:120',
             'image' => 'nullable|image|max:4096',
+            // Optional payment gateway credentials for branch
+            'merchant_id' => 'nullable|string|max:255',
+            'secret_key' => 'nullable|string',
+            'is_active' => 'nullable|boolean',
+            'gateway_name' => 'nullable|string|max:100',
         ]);
         $imageUrl = null;
         if ($request->hasFile('image')) {
             $imageUrl = $this->storePublicUpload($request->file('image'), 'branches');
         }
-        $firebase->updateDocument("restaurants/{$restaurantId}/branches", $branchId, [
+        $payload = [
             'name' => $data['name'],
             'contact' => $data['contact'] ?? '',
             'status' => $data['status'],
@@ -377,7 +447,48 @@ class SettingsController extends Controller
                 'zipCode' => $data['zipCode'] ?? '',
                 'country' => $data['country'] ?? '',
             ],
-        ]);
+        ];
+        $existing = $firebase->getDocument("restaurants/{$restaurantId}/branches", $branchId);
+        $f = $existing['fields'] ?? [];
+        $decode = function($v) use (&$decode) {
+            if (!is_array($v)) return $v;
+            if (isset($v['stringValue'])) return $v['stringValue'];
+            if (isset($v['integerValue'])) return (int)$v['integerValue'];
+            if (isset($v['doubleValue'])) return (float)$v['doubleValue'];
+            if (isset($v['booleanValue'])) return (bool)$v['booleanValue'];
+            if (isset($v['nullValue'])) return null;
+            if (isset($v['arrayValue']['values'])) return array_map($decode, $v['arrayValue']['values']);
+            if (isset($v['mapValue']['fields'])) {
+                $out = [];
+                foreach ($v['mapValue']['fields'] as $kk => $vv) { $out[$kk] = $decode($vv); }
+                return $out;
+            }
+            return $v;
+        };
+        $before = [];
+        $after = [];
+        foreach ($payload as $k => $v) {
+            if (array_key_exists($k, $f)) { $before[$k] = $decode($f[$k]); }
+            $after[$k] = $v;
+        }
+        $request->attributes->set('audit_before', $before);
+        $request->attributes->set('audit_after', $after);
+        $firebase->updateDocument("restaurants/{$restaurantId}/branches", $branchId, $payload);
+
+        // Handle paymentConfig nested map update/create if merchant_id and secret_key provided
+        if (!empty($data['merchant_id']) && !empty($data['secret_key'])) {
+            $now = now()->toIso8601String();
+            $pcPayload = [
+                'gatewayName' => $data['gateway_name'] ?? 'Paytrail',
+                'merchantId' => $data['merchant_id'],
+                'secretKeyEnc' => Crypt::encryptString($data['secret_key']),
+                'isActive' => isset($data['is_active']) ? (bool)$data['is_active'] : true,
+                'updatedAt' => $now,
+            ];
+            // If not present, set createdAt
+            if (empty($f['paymentConfig'])) { $pcPayload['createdAt'] = $now; }
+            $firebase->updateDocument("restaurants/{$restaurantId}/branches", $branchId, ['paymentConfig' => $pcPayload]);
+        }
         return redirect()->route('settings.branches', $restaurantId)->with('status', 'Branch updated');
     }
 

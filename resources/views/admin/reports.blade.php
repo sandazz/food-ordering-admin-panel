@@ -6,17 +6,16 @@
         <p class="page-subtitle">Analytics and insights for your business performance</p>
     </div>
     <div class="d-flex gap-2">
-        <button class="btn btn-outline-primary" id="refreshBtn" onclick="refreshAll()">
-            <i class="bi bi-arrow-clockwise me-2"></i>{{ \App\Utils\UIStrings::t('reports.refresh') }}
-        </button>
         <div class="dropdown">
             <button class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
                 <i class="bi bi-download me-2"></i>{{ \App\Utils\UIStrings::t('reports.export') }}
             </button>
             <div class="dropdown-menu p-3" style="min-width: 320px;">
-                <form method="GET" action="{{ route('reports.export') }}" target="_blank" id="exportForm">
+                <form method="GET" action="{{ route('reports.export') }}" target="_blank" id="exportForm" data-no-loading>
                     <input type="hidden" name="period" id="exportPeriod" value="daily">
                     <input type="hidden" name="branchId" id="exportBranchId" value="">
+                    <input type="hidden" name="dateFrom" id="exportDateFrom" value="">
+                    <input type="hidden" name="dateTo" id="exportDateTo" value="">
                     <div class="mb-3">
                         <label class="form-label small">Report Type</label>
                         <select name="report" class="form-select form-select-sm">
@@ -55,6 +54,7 @@
                     <option value="daily">{{ \App\Utils\UIStrings::t('reports.period.daily') }}</option>
                     <option value="weekly">{{ \App\Utils\UIStrings::t('reports.period.weekly') }}</option>
                     <option value="monthly">{{ \App\Utils\UIStrings::t('reports.period.monthly') }}</option>
+                    <option value="annual">Annually</option>
                 </select>
             </div>
             @if(session('role') !== 'branch_admin')
@@ -69,12 +69,19 @@
             </div>
             @endif
             <div class="col-md-3">
-                <label class="form-label">Date Range</label>
-                <input type="date" class="form-control" id="dateRange">
+                <label class="form-label">Date From</label>
+                <input type="date" class="form-control" id="dateFrom">
             </div>
-            <div class="col-md-2">
-                <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+            <div class="col-md-3">
+                <label class="form-label">Date To</label>
+                <input type="date" class="form-control" id="dateTo">
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button class="btn btn-outline-secondary flex-fill" onclick="resetFilters()">
                     <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+                </button>
+                <button class="btn btn-primary flex-fill" id="loadBtn">
+                    <i class="bi bi-play me-1"></i>Load
                 </button>
             </div>
         </div>
@@ -92,7 +99,7 @@
                 <div class="icon">
                     <i class="bi bi-graph-up"></i>
                 </div>
-                <h3 class="mb-1 fw-bold" id="totalRevenue">$0</h3>
+                <h3 class="mb-1 fw-bold" id="totalRevenue">€0</h3>
                 <p class="text-muted mb-0">Total Revenue</p>
                 <small class="text-success">
                     <i class="bi bi-arrow-up"></i> <span id="revenueGrowth">+0%</span> from last period
@@ -120,7 +127,7 @@
                 <div class="icon">
                     <i class="bi bi-currency-dollar"></i>
                 </div>
-                <h3 class="mb-1 fw-bold" id="avgOrderValue">$0</h3>
+                <h3 class="mb-1 fw-bold" id="avgOrderValue">€0</h3>
                 <p class="text-muted mb-0">Avg Order Value</p>
                 <small class="text-info">
                     <i class="bi bi-graph-up"></i> <span id="aovGrowth">+0%</span> vs target
@@ -213,9 +220,16 @@
                 <h6 class="mb-0">
                     <i class="bi bi-table me-2"></i>Sales Summary
                 </h6>
-                <button class="btn btn-sm btn-outline-primary" onclick="exportTableData()">
-                    <i class="bi bi-download me-1"></i>Export
-                </button>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
+                        <i class="bi bi-download me-1"></i>Export
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" style="z-index:2000;">
+                        <li><a class="dropdown-item" href="#" onclick="exportSalesSummary('csv'); return false;">Export as CSV</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportSalesSummary('xlsx'); return false;">Export as Excel (.xlsx)</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportSalesSummary('pdf'); return false;">Export as PDF</a></li>
+                    </ul>
+                </div>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive" style="max-height: 350px;">
@@ -268,7 +282,17 @@ let currentSalesData = [];
 // Utility functions
 function syncExportInputs() {
     document.getElementById('exportPeriod').value = document.getElementById('period').value;
-    document.getElementById('exportBranchId').value = document.getElementById('branchId').value;
+    const branchEl = document.getElementById('branchId');
+    document.getElementById('exportBranchId').value = branchEl ? branchEl.value : '';
+}
+
+function syncExportDateInputs() {
+    const fromEl = document.getElementById('dateFrom');
+    const toEl = document.getElementById('dateTo');
+    const ef = document.getElementById('exportDateFrom');
+    const et = document.getElementById('exportDateTo');
+    if (ef) ef.value = fromEl ? fromEl.value : '';
+    if (et) et.value = toEl ? toEl.value : '';
 }
 
 async function fetchJson(url, params) {
@@ -278,9 +302,12 @@ async function fetchJson(url, params) {
 }
 
 function filters() {
+    const branchEl = document.getElementById('branchId');
     return { 
         period: document.getElementById('period').value, 
-        branchId: document.getElementById('branchId').value 
+        branchId: branchEl ? branchEl.value : '',
+        dateFrom: (document.getElementById('dateFrom') ? document.getElementById('dateFrom').value : ''),
+        dateTo: (document.getElementById('dateTo') ? document.getElementById('dateTo').value : '')
     };
 }
 
@@ -294,7 +321,7 @@ function fmt(n) {
 function fmtCurrency(n) {
     return new Intl.NumberFormat(undefined, {
         style: 'currency',
-        currency: 'USD'
+        currency: 'EUR'
     }).format(n || 0);
 }
 
@@ -378,30 +405,32 @@ async function loadSales() {
         const chartData = currentView === 'revenue' ? revenues : orders;
         const label = currentView === 'revenue' ? 'Revenue' : 'Orders';
         
-        salesChart = upsertChart(salesChart, ctx, 'line', {
+        // Use a bar chart for better visibility
+        salesChart = upsertChart(salesChart, ctx, 'bar', {
             labels,
             datasets: [{
                 label,
                 data: chartData,
+                backgroundColor: 'rgba(99, 102, 241, 0.9)',
                 borderColor: '#6366f1',
-                backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#6366f1',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6
+                borderWidth: 1,
+                borderRadius: 6,
+                barThickness: 'flex'
             }]
         }, {
             ...chartDefaults,
+            scales: {
+                ...chartDefaults.scales,
+                x: { ...chartDefaults.scales.x },
+                y: { ...chartDefaults.scales.y }
+            },
             plugins: {
                 ...chartDefaults.plugins,
                 tooltip: {
                     ...chartDefaults.plugins.tooltip,
                     callbacks: {
                         label: function(context) {
-                            return currentView === 'revenue' 
+                            return currentView === 'revenue'
                                 ? `Revenue: ${fmtCurrency(context.parsed.y)}`
                                 : `Orders: ${context.parsed.y.toLocaleString()}`;
                         }
@@ -572,9 +601,13 @@ async function refreshAll() {
 
 function resetFilters() {
     document.getElementById('period').value = 'daily';
-    document.getElementById('branchId').value = '';
-    document.getElementById('dateRange').value = '';
-    refreshAll();
+    const branchEl = document.getElementById('branchId');
+    if (branchEl) branchEl.value = '';
+    if (document.getElementById('dateFrom')) document.getElementById('dateFrom').value = '';
+    if (document.getElementById('dateTo')) document.getElementById('dateTo').value = '';
+    // Do not auto-load after reset. Keep export inputs in sync.
+    syncExportInputs();
+    syncExportDateInputs();
 }
 
 function exportTableData() {
@@ -595,9 +628,31 @@ function exportTableData() {
     window.URL.revokeObjectURL(url);
 }
 
+// Export sales summary using server-side export endpoint (respects same filters)
+function exportSalesSummary(type) {
+    try {
+        syncExportInputs();
+        syncExportDateInputs();
+        const form = document.getElementById('exportForm');
+        if (!form) return alert('Export form not found');
+
+        // Set report to sales summary and requested type
+        const reportEl = form.querySelector('[name="report"]');
+        const typeEl = form.querySelector('[name="type"]');
+        if (reportEl) reportEl.value = 'sales';
+        if (typeEl) typeEl.value = type || 'csv';
+
+        // Dispatch submit event so the existing export handler takes over (it adds X-No-Loading)
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    } catch (err) {
+        console.error('Failed to start sales summary export', err);
+        alert('Failed to start export: ' + (err.message || err));
+    }
+}
+
 // Event listeners
-document.getElementById('period').addEventListener('change', refreshAll);
-document.getElementById('branchId').addEventListener('change', refreshAll);
+// Load button triggers data refresh using selected filters
+document.getElementById('loadBtn').addEventListener('click', refreshAll);
 
 // Chart view toggles
 document.querySelectorAll('[data-chart-view]').forEach(btn => {
@@ -608,11 +663,73 @@ document.querySelectorAll('[data-chart-view]').forEach(btn => {
     });
 });
 
-// Export form handling
-document.getElementById('exportForm').addEventListener('submit', function() {
-    btnStart(document.getElementById('exportBtn'), 'Exporting...');
-    setTimeout(() => btnDone(document.getElementById('exportBtn')), 2000);
+// Export form handling — sync hidden inputs, then submit normally.
+document.getElementById('exportForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    // ensure export hidden inputs reflect current filters
+    syncExportInputs();
+    syncExportDateInputs();
+
+    const exportBtn = document.getElementById('exportBtn');
+    btnStart(exportBtn, 'Exporting...');
+
+    try {
+        const form = document.getElementById('exportForm');
+        const action = form.getAttribute('action');
+        const params = new URLSearchParams(new FormData(form));
+        const url = action + '?' + params.toString();
+
+        const res = await fetch(url, {
+            credentials: 'same-origin',
+            headers: { 'X-No-Loading': '1' }
+        });
+        if (!res.ok) {
+            // try to parse JSON error if available
+            const ct = res.headers.get('Content-Type') || '';
+            if (ct.indexOf('application/json') !== -1) {
+                const json = await res.json();
+                alert(json.error || json.message || 'Export failed');
+            } else {
+                alert('Export failed with status ' + res.status);
+            }
+            btnDone(exportBtn);
+            return;
+        }
+
+        const blob = await res.blob();
+
+        // Try to determine filename from Content-Disposition header
+        let filename = '';
+        const cd = res.headers.get('Content-Disposition') || res.headers.get('content-disposition');
+        if (cd) {
+            const m = /filename\*=UTF-8''([^;\n\r]+)/i.exec(cd) || /filename="?([^";]+)"?/i.exec(cd);
+            if (m && m[1]) filename = decodeURIComponent(m[1]);
+        }
+        if (!filename) {
+            const type = params.get('type') || 'bin';
+            const report = params.get('report') || 'report';
+            filename = `${report}_${params.get('period') || 'period'}_${new Date().toISOString().replace(/[:.]/g,'')}.${type}`;
+        }
+
+        const urlBlob = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = urlBlob;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(urlBlob);
+
+        // Done: remove spinner when file blob is received and download started
+        btnDone(exportBtn);
+    } catch (err) {
+        console.error('Export failed', err);
+        alert('Export failed: ' + (err.message || err));
+        btnDone(exportBtn);
+    }
 });
+
+// Filters do not auto-refresh. Data loads only when user clicks `Load`.
 
 // Mock customer data update
 function updateCustomerMetrics() {
@@ -621,7 +738,22 @@ function updateCustomerMetrics() {
 }
 
 // Initialize
+// set default date inputs to today so initial load shows today's data
+function todayYMD() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+if (document.getElementById('dateFrom') && !document.getElementById('dateFrom').value) {
+    document.getElementById('dateFrom').value = todayYMD();
+}
+if (document.getElementById('dateTo') && !document.getElementById('dateTo').value) {
+    document.getElementById('dateTo').value = todayYMD();
+}
 syncExportInputs();
+syncExportDateInputs();
 updateCustomerMetrics();
 refreshAll();
 </script>

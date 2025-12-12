@@ -130,6 +130,74 @@ class FirebaseService
         return json_decode($response->getBody()->getContents(), true);
     }
 
+    /**
+     * Run a structured query against Firestore to fetch documents that match the provided filters.
+     * Returns an array with a 'documents' key consistent with getCollection responses.
+     *
+     * @param string $collectionId Top-level collection id (e.g. 'orders')
+     * @param array $fieldFilters Array of ['fieldPath' => 'restaurantId', 'op' => 'EQUAL', 'value' => 'resto_xxx']
+     * @return array
+     */
+    public function runStructuredQuery(string $collectionId, array $fieldFilters = [])
+    {
+        $token = $this->getAccessToken();
+
+        // Build where clause
+        $where = null;
+        $filters = [];
+        foreach ($fieldFilters as $ff) {
+            $filters[] = [
+                'fieldFilter' => [
+                    'field' => ['fieldPath' => $ff['fieldPath']],
+                    'op' => $ff['op'] ?? 'EQUAL',
+                    'value' => is_string($ff['value']) ? ['stringValue' => $ff['value']] : (is_int($ff['value']) ? ['integerValue' => $ff['value']] : ['stringValue' => (string)$ff['value']]),
+                ],
+            ];
+        }
+
+        if (count($filters) === 1) {
+            $where = $filters[0];
+        } elseif (count($filters) > 1) {
+            $where = [
+                'compositeFilter' => [
+                    'op' => 'AND',
+                    'filters' => $filters,
+                ],
+            ];
+        }
+
+        $structuredQuery = [
+            'from' => [[ 'collectionId' => $collectionId ]],
+        ];
+
+        if ($where) {
+            $structuredQuery['where'] = $where;
+        }
+
+        $url = "https://firestore.googleapis.com/v1/projects/{$this->projectId}/databases/(default)/documents:runQuery";
+
+        $response = $this->performRequest('POST', $url, [
+            'headers' => [
+                'Authorization' => "Bearer {$token}",
+                'Content-Type' => 'application/json',
+            ],
+            'json' => ['structuredQuery' => $structuredQuery],
+        ]);
+
+        $body = json_decode($response->getBody()->getContents(), true);
+        // The runQuery response is an array of results, each may contain a 'document' entry
+        $documents = [];
+        if (is_array($body)) {
+            foreach ($body as $entry) {
+                if (isset($entry['document'])) {
+                    $documents[] = $entry['document'];
+                }
+            }
+        }
+
+        return ['documents' => $documents];
+    }
+
     public function createDocument(string $collectionName, array $data, ?string $documentId = null)
     {
         $endpoint = $documentId ? "{$collectionName}?documentId={$documentId}" : $collectionName;

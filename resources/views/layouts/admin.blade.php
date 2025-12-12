@@ -669,6 +669,10 @@
                 <i class="bi bi-graph-up"></i>
                 {{ \App\Utils\UIStrings::t('nav.reports') }}
             </a>
+            <a href="{{ route('audit.index') }}" class="{{ request()->is('admin/audit-logs') ? 'active' : '' }}">
+                <i class="bi bi-shield-check"></i>
+                Audit Logs
+            </a>
             @if(session('role') !== 'branch_admin')
             <a href="{{ url('/admin/notifications') }}" class="{{ request()->is('admin/notifications') ? 'active' : '' }}">
                 <i class="bi bi-bell"></i>
@@ -768,7 +772,39 @@
   function done(){ pending = Math.max(0, pending-1); if(pending===0) hide(); }
 
   const origFetch = window.fetch;
-  window.fetch = function(){ start(); return origFetch.apply(this, arguments).finally(done); };
+    window.fetch = function(){
+        const args = Array.from(arguments);
+        const input = args[0];
+        const init = args[1] || {};
+        // Determine if this request should bypass global loading overlay
+        let skipLoading = false;
+        try {
+            // Check custom header flag
+            const headers = init && init.headers ? init.headers : undefined;
+            if (headers) {
+                // Headers may be a Headers instance or plain object
+                const getHeader = (h,k)=>{
+                    if (!h) return undefined;
+                    if (typeof h.get === 'function') return h.get(k);
+                    const key = Object.keys(h).find(x=>x.toLowerCase()===k.toLowerCase());
+                    return key ? h[key] : undefined;
+                };
+                const noLoading = getHeader(headers, 'X-No-Loading');
+                if (noLoading && String(noLoading) !== '0') {
+                    skipLoading = true;
+                }
+            }
+            // Also allow opt-out via URL query parameter x_no_loading=1
+            if (!skipLoading && typeof input === 'string') {
+                const url = new URL(input, window.location.origin);
+                if (url.searchParams.get('x_no_loading') === '1') skipLoading = true;
+            }
+        } catch (_) {}
+
+        if (!skipLoading) start();
+        const p = origFetch.apply(this, args);
+        return skipLoading ? p : p.finally(done);
+    };
 
   document.addEventListener('submit', function(e){ const form = e.target; if(form && !form.hasAttribute('data-no-loading')) { show(); } }, true);
   window.addEventListener('beforeunload', function(){ show(); });
@@ -919,5 +955,8 @@ document.addEventListener('DOMContentLoaded',function(){
   });
 });
 </script>
+@stack('modals')
 </body>
 </html>
+</html>
+

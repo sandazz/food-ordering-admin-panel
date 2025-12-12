@@ -29,7 +29,7 @@
         @php($checked = $selSizeMap->has($s['id']))
         <label class="list-group-item d-flex align-items-center" style="gap:.5rem;">
           <input type="checkbox" name="sizes[{{ $s['id'] }}]" value="1" onchange="toggleInline(this)" {{ $checked ? 'checked' : '' }}>
-          <span style="min-width:160px;">{{ $s['name'] }} ({{ number_format($s['price'],2) }})</span>
+          <span style="min-width:160px;">{{ $s['name'] }} (€{{ number_format($s['price'],2) }})</span>
           <input type="number" step="0.01" min="0" name="sizes_price[{{ $s['id'] }}]" class="form-control form-control-sm" style="max-width:160px; {{ $checked ? '' : 'display:none;' }}" placeholder="{{ \App\Utils\UIStrings::t('placeholder.price_override_optional') }}" value="{{ $checked ? $selSizeMap[$s['id']]['price'] : '' }}">
         </label>
       @endforeach
@@ -45,7 +45,7 @@
         @php($checked = $selBaseMap->has($b['id']))
         <label class="list-group-item d-flex align-items-center" style="gap:.5rem;">
           <input type="checkbox" name="bases[{{ $b['id'] }}]" value="1" onchange="toggleInline(this)" {{ $checked ? 'checked' : '' }}>
-          <span style="min-width:160px;">{{ $b['name'] }} ({{ number_format($b['price'],2) }})</span>
+          <span style="min-width:160px;">{{ $b['name'] }} (€{{ number_format($b['price'],2) }})</span>
           <input type="number" step="0.01" min="0" name="bases_price[{{ $b['id'] }}]" class="form-control form-control-sm" style="max-width:160px; {{ $checked ? '' : 'display:none;' }}" placeholder="{{ \App\Utils\UIStrings::t('placeholder.price_override_optional') }}" value="{{ $checked ? $selBaseMap[$b['id']]['price'] : '' }}">
         </label>
       @endforeach
