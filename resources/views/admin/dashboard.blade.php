@@ -31,7 +31,7 @@
                     <i class="bi bi-currency-dollar"></i>
                 </div>
                 <h3 class="mb-1 fw-bold">
-                    ${{ number_format($stats['totalRevenue'], 2) }}
+                    €{{ number_format($stats['totalRevenue'], 2) }}
                 </h3>
                 <p class="text-muted mb-0">Total Revenue</p>
                 <small class="{{ $stats['revenueGrowth'] >= 0 ? 'text-success' : 'text-danger' }}">
@@ -95,7 +95,7 @@
                                     return $fields['totalAmount']['integerValue'] ?? $fields['totalAmount']['doubleValue'] ?? 0;
                                 });
                             @endphp
-                            <h4 class="text-success mb-1">${{ number_format($todayRevenue, 2) }}</h4>
+                            <h4 class="text-success mb-1">€{{ number_format($todayRevenue, 2) }}</h4>
                             <small class="text-muted">Today's Revenue</small>
                             <p class="text-muted small mb-0 mt-1">
                                 {{ collect($recentOrders)->filter(function($order) {
@@ -122,7 +122,7 @@
                                     return $fields['totalAmount']['integerValue'] ?? $fields['totalAmount']['doubleValue'] ?? 0;
                                 });
                             @endphp
-                            <h4 class="text-primary mb-1">${{ number_format($weekRevenue, 2) }}</h4>
+                            <h4 class="text-primary mb-1">€{{ number_format($weekRevenue, 2) }}</h4>
                             <small class="text-muted">This Week</small>
                             <p class="text-muted small mb-0 mt-1">
                                 {{ collect($recentOrders)->filter(function($order) {
@@ -136,7 +136,7 @@
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <h4 class="text-info mb-1">${{ number_format($stats['totalRevenue'], 2) }}</h4>
+                        <h4 class="text-info mb-1">€{{ number_format($stats['totalRevenue'], 2) }}</h4>
                         <small class="text-muted">This Month</small>
                         <p class="text-muted small mb-0 mt-1">
                             {{ $allOrdersCount }} total orders
@@ -258,7 +258,7 @@
                                         @endif
                                     </td>
                                     <td class="text-end">
-                                        <span class="fw-semibold">${{ number_format($totalAmount, 2) }}</span>
+                                        <span class="fw-semibold">€{{ number_format($totalAmount, 2) }}</span>
                                     </td>
                                     <td>
                                         <span class="text-muted small">{{ $createdAtRaw ? \Carbon\Carbon::parse($createdAtRaw)->format('M j, g:i A') : 'N/A' }}</span>
@@ -365,7 +365,7 @@
                                 <small class="text-muted">
                                     <i class="bi bi-truck text-primary"></i> Delivery ({{ $deliveryCount }})
                                 </small>
-                                <small class="fw-semibold">${{ number_format($deliveryRevenue, 2) }}</small>
+                                <small class="fw-semibold">€{{ number_format($deliveryRevenue, 2) }}</small>
                             </div>
                             <div class="progress" style="height: 6px;">
                                 <div class="progress-bar bg-primary" role="progressbar" style="width: {{ $stats['totalRevenue'] > 0 ? ($deliveryRevenue / $stats['totalRevenue'] * 100) : 0 }}%"></div>
@@ -376,7 +376,7 @@
                                 <small class="text-muted">
                                     <i class="bi bi-bag text-warning"></i> Pickup ({{ $pickupCount }})
                                 </small>
-                                <small class="fw-semibold">${{ number_format($pickupRevenue, 2) }}</small>
+                                <small class="fw-semibold">€{{ number_format($pickupRevenue, 2) }}</small>
                             </div>
                             <div class="progress" style="height: 6px;">
                                 <div class="progress-bar bg-warning" role="progressbar" style="width: {{ $stats['totalRevenue'] > 0 ? ($pickupRevenue / $stats['totalRevenue'] * 100) : 0 }}%"></div>
@@ -387,7 +387,7 @@
                                 <small class="text-muted">
                                     <i class="bi bi-shop text-info"></i> Dine-in ({{ $dineInCount }})
                                 </small>
-                                <small class="fw-semibold">${{ number_format($dineInRevenue, 2) }}</small>
+                                <small class="fw-semibold">€{{ number_format($dineInRevenue, 2) }}</small>
                             </div>
                             <div class="progress" style="height: 6px;">
                                 <div class="progress-bar bg-info" role="progressbar" style="width: {{ $stats['totalRevenue'] > 0 ? ($dineInRevenue / $stats['totalRevenue'] * 100) : 0 }}%"></div>
@@ -435,14 +435,14 @@
                                 <i class="bi bi-credit-card text-success me-2"></i>
                                 <span class="text-muted">Card ({{ $cardCount }})</span>
                             </div>
-                            <span class="fw-semibold">${{ number_format($cardRevenue, 2) }}</span>
+                            <span class="fw-semibold">€{{ number_format($cardRevenue, 2) }}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <i class="bi bi-cash text-secondary me-2"></i>
                                 <span class="text-muted">Cash ({{ $cashCount }})</span>
                             </div>
-                            <span class="fw-semibold">${{ number_format($cashRevenue, 2) }}</span>
+                            <span class="fw-semibold">€{{ number_format($cashRevenue, 2) }}</span>
                         </div>
                     </div>
                 </div>
@@ -499,7 +499,7 @@
                     </div>
                     <div class="col-md-3">
                         <div class="border-end">
-                            <h4 class="text-warning mb-1">${{ number_format($stats['avgOrderValue'], 2) }}</h4>
+                            <h4 class="text-warning mb-1">€{{ number_format($stats['avgOrderValue'], 2) }}</h4>
                             <small class="text-muted">Avg Order Value</small>
                         </div>
                     </div>
