@@ -104,7 +104,7 @@
         <div class="card">
             <div class="card-body text-center">
                 <i class="bi bi-currency-dollar text-info" style="font-size: 2rem;"></i>
-                <h4 class="mb-1 mt-2">${{ number_format($totalRevenue, 2) }}</h4>
+                <h4 class="mb-1 mt-2">€{{ number_format($totalRevenue, 2) }}</h4>
             </div>
         </div>
     </div>
@@ -190,10 +190,10 @@
                                         <i class="bi bi-list"></i> {{ count($order['items']) }} item(s)
                                     </button>
                                 </td>
-                                <td class="text-end">${{ number_format($order['subtotal'], 2) }}</td>
-                                <td class="text-end">${{ number_format($order['deliveryFee'], 2) }}</td>
-                                <td class="text-end">${{ number_format($order['taxAmount'], 2) }}</td>
-                                <td class="text-end"><strong>${{ number_format($order['totalAmount'], 2) }}</strong></td>
+                                <td class="text-end">€{{ number_format($order['subtotal'], 2) }}</td>
+                                <td class="text-end">€{{ number_format($order['deliveryFee'], 2) }}</td>
+                                <td class="text-end">€{{ number_format($order['taxAmount'], 2) }}</td>
+                                <td class="text-end"><strong>€{{ number_format($order['totalAmount'], 2) }}</strong></td>
                                 <td style="white-space:nowrap">
                                     @if($order['createdAt'])
                                         {{ \Carbon\Carbon::parse($order['createdAt'])->format('Y-m-d H:i') }}
@@ -254,9 +254,9 @@
                                                         </div>
                                                         <div class="col-md-2 text-end">
                                                             <div><strong>Qty:</strong> {{ $item['quantity'] }}</div>
-                                                            <div><strong>Price:</strong> ${{ number_format($item['price'], 2) }}</div>
+                                                            <div><strong>Price:</strong> €{{ number_format($item['price'], 2) }}</div>
                                                             @if($item['customizationExtra'] > 0)
-                                                                <div class="text-muted small">+${{ number_format($item['customizationExtra'], 2) }} extra</div>
+                                                                <div class="text-muted small">+€{{ number_format($item['customizationExtra'], 2) }} extra</div>
                                                             @endif
                                                         </div>
                                                     </div>
