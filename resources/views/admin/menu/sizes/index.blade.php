@@ -29,7 +29,7 @@
         <td>{{ $s['branchName'] ?? '' }}</td>
         @endif
         <td>{{ $s['name'] }}</td>
-        <td>{{ number_format($s['price'], 2) }}</td>
+        <td>€{{ number_format($s['price'], 2) }}</td>
         <td>{{ $s['isActive'] ? \App\Utils\UIStrings::t('common.yes') : \App\Utils\UIStrings::t('common.no') }}</td>
         <td class="text-end">
           @php($role = session('role'))

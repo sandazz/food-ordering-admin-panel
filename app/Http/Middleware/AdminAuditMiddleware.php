@@ -30,8 +30,8 @@ class AdminAuditMiddleware
                 $routeName = optional($request->route())->getName() ?? $request->path();
                 $ip = $request->ip();
 
-                // Filter out sensitive fields
-                $input = $request->except(['password','password_confirmation','_token']);
+                // Filter out sensitive fields (do not log secrets)
+                $input = $request->except(['password','password_confirmation','_token','secret_key','secretKeyEnc','secretKey','secret']);
 
                 $data = [
                     'uid' => $uid,

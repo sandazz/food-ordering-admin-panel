@@ -38,14 +38,18 @@ class ReportsController extends Controller
     public function sales(Request $request, FirebaseService $firebase)
     {
         $request->validate([
-            'period' => 'required|string|in:daily,weekly,monthly',
+            'period' => 'required|string|in:daily,weekly,monthly,annual',
             'branchId' => 'nullable|string',
+            'dateFrom' => 'nullable|date',
+            'dateTo' => 'nullable|date|after_or_equal:dateFrom',
         ]);
         $restaurantId = $request->session()->get('restaurantId');
         if (!$restaurantId) { return response()->json(['error' => 'No restaurant selected'], 400); }
         $branchId = $request->input('branchId') ?: $request->session()->get('branchId');
-        $orders = $this->fetchOrders($firebase, $restaurantId, $branchId);
+        $dateFrom = $request->input('dateFrom');
+        $dateTo = $request->input('dateTo');
         $period = $request->input('period');
+        $orders = $this->fetchOrders($firebase, $restaurantId, $branchId, $period, $dateFrom, $dateTo);
         $buckets = $this->bucketOrdersByPeriod($orders, $period);
         return response()->json($buckets);
     }
@@ -53,14 +57,18 @@ class ReportsController extends Controller
     public function topItems(Request $request, FirebaseService $firebase)
     {
         $request->validate([
-            'period' => 'required|string|in:daily,weekly,monthly',
+            'period' => 'required|string|in:daily,weekly,monthly,annual',
             'limit' => 'nullable|integer|min:1|max:100',
             'branchId' => 'nullable|string',
+            'dateFrom' => 'nullable|date',
+            'dateTo' => 'nullable|date|after_or_equal:dateFrom',
         ]);
         $restaurantId = $request->session()->get('restaurantId');
         if (!$restaurantId) { return response()->json(['error' => 'No restaurant selected'], 400); }
         $branchId = $request->input('branchId') ?: $request->session()->get('branchId');
-        $orders = $this->fetchOrders($firebase, $restaurantId, $branchId, $request->input('period'));
+        $dateFrom = $request->input('dateFrom');
+        $dateTo = $request->input('dateTo');
+        $orders = $this->fetchOrders($firebase, $restaurantId, $branchId, $request->input('period'), $dateFrom, $dateTo);
         $items = [];
         foreach ($orders as $o) {
             $arr = $o['fields']['items']['arrayValue']['values'] ?? [];
@@ -81,13 +89,17 @@ class ReportsController extends Controller
     public function busySlots(Request $request, FirebaseService $firebase)
     {
         $request->validate([
-            'period' => 'required|string|in:daily,weekly,monthly',
+            'period' => 'required|string|in:daily,weekly,monthly,annual',
             'branchId' => 'nullable|string',
+            'dateFrom' => 'nullable|date',
+            'dateTo' => 'nullable|date|after_or_equal:dateFrom',
         ]);
         $restaurantId = $request->session()->get('restaurantId');
         if (!$restaurantId) { return response()->json(['error' => 'No restaurant selected'], 400); }
         $branchId = $request->input('branchId') ?: $request->session()->get('branchId');
-        $orders = $this->fetchOrders($firebase, $restaurantId, $branchId, $request->input('period'));
+        $dateFrom = $request->input('dateFrom');
+        $dateTo = $request->input('dateTo');
+        $orders = $this->fetchOrders($firebase, $restaurantId, $branchId, $request->input('period'), $dateFrom, $dateTo);
         $hist = [];
         foreach ($orders as $o) {
             $ts = $this->parseTimestamp($o['fields']['createdAt'] ?? []);
@@ -104,9 +116,11 @@ class ReportsController extends Controller
     {
         $request->validate([
             'report' => 'required|string|in:sales,top-items,busy-slots',
-            'period' => 'required|string|in:daily,weekly,monthly',
+            'period' => 'required|string|in:daily,weekly,monthly,annual',
             'type' => 'required|string|in:csv,xlsx,pdf',
             'branchId' => 'nullable|string',
+            'dateFrom' => 'nullable|date',
+            'dateTo' => 'nullable|date|after_or_equal:dateFrom',
         ]);
         $restaurantId = $request->session()->get('restaurantId');
         if (!$restaurantId) { return response()->json(['error' => 'No restaurant selected'], 400); }
@@ -115,14 +129,16 @@ class ReportsController extends Controller
         $report = $request->input('report');
         $period = $request->input('period');
         $type = $request->input('type');
+        $dateFrom = $request->input('dateFrom');
+        $dateTo = $request->input('dateTo');
 
         if ($report === 'sales') {
-            $orders = $this->fetchOrders($firebase, $restaurantId, $branchId);
+            $orders = $this->fetchOrders($firebase, $restaurantId, $branchId, $period, $dateFrom, $dateTo);
             $data = $this->bucketOrdersByPeriod($orders, $period);
             $headers = ['period','orders','total'];
             $rows = array_map(fn($r) => [$r['period'], $r['orders'], number_format($r['total'], 2, '.', '')], $data);
         } elseif ($report === 'top-items') {
-            $orders = $this->fetchOrders($firebase, $restaurantId, $branchId, $period);
+            $orders = $this->fetchOrders($firebase, $restaurantId, $branchId, $period, $dateFrom, $dateTo);
             $acc = [];
             foreach ($orders as $o) {
                 $arr = $o['fields']['items']['arrayValue']['values'] ?? [];
@@ -140,7 +156,7 @@ class ReportsController extends Controller
             $rows = [];
             foreach ($acc as $name=>$v) { $rows[] = [$v['name'], $v['qty']]; }
         } else { // busy-slots
-            $orders = $this->fetchOrders($firebase, $restaurantId, $branchId, $period);
+            $orders = $this->fetchOrders($firebase, $restaurantId, $branchId, $period, $dateFrom, $dateTo);
             $hist = [];
             foreach ($orders as $o) {
                 $ts = $this->parseTimestamp($o['fields']['createdAt'] ?? []);
@@ -155,10 +171,42 @@ class ReportsController extends Controller
 
         if ($type === 'csv') {
             $filename = $report.'_'.$period.'_' . date('Ymd_His') . '.csv';
-            $response = new StreamedResponse(function() use ($headers, $rows) {
+
+            // metadata header rows
+            $meta = [
+                [strtoupper('Report: ' . $report)],
+                ['Period: ' . $period],
+                ['Branch: ' . ($branchId ?: 'All')],
+                ['Generated: ' . date('c')],
+                []
+            ];
+
+            // summary footer rows (sales/top-items/busy-slots)
+            $footer = [];
+            if ($report === 'sales') {
+                $totalOrders = array_sum(array_column($rows, 1));
+                $totalRevenue = array_sum(array_column($rows, 2));
+                $avgOrder = $totalOrders > 0 ? $totalRevenue / $totalOrders : 0;
+                $footer[] = [];
+                $footer[] = ['Totals', $totalOrders, number_format($totalRevenue, 2, '.', '')];
+                $footer[] = ['Average Order Value', '', number_format($avgOrder, 2, '.', '')];
+            } elseif ($report === 'top-items') {
+                $totalQty = array_sum(array_column($rows, 1));
+                $footer[] = [];
+                $footer[] = ['Total Items Listed', count($rows)];
+                $footer[] = ['Total Quantity Sold', $totalQty];
+            } elseif ($report === 'busy-slots') {
+                $total = array_sum(array_column($rows, 1));
+                $footer[] = [];
+                $footer[] = ['Total Orders', $total];
+            }
+
+            $response = new StreamedResponse(function() use ($meta, $headers, $rows, $footer) {
                 $handle = fopen('php://output', 'w');
+                foreach ($meta as $m) { fputcsv($handle, $m); }
                 fputcsv($handle, $headers);
                 foreach ($rows as $r) { fputcsv($handle, $r); }
+                foreach ($footer as $f) { fputcsv($handle, $f); }
                 fclose($handle);
             });
             $response->headers->set('Content-Type', 'text/csv');
@@ -169,10 +217,61 @@ class ReportsController extends Controller
         if ($type === 'xlsx' && class_exists('\\PhpOffice\\PhpSpreadsheet\\Spreadsheet')) {
             $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
-            // Write headers
-            $col = 1; foreach ($headers as $h) { $sheet->setCellValueByColumnAndRow($col++, 1, $h); }
-            // Write rows
-            $rowNum = 2; foreach ($rows as $r) { $col = 1; foreach ($r as $c) { $sheet->setCellValueByColumnAndRow($col++, $rowNum, $c); } $rowNum++; }
+
+            // Title and metadata
+            $title = strtoupper('Report: ' . $report);
+            $sheet->mergeCells('A1:D1');
+            $sheet->setCellValue('A1', $title);
+            $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+
+            $sheet->setCellValue('A2', 'Period:');
+            $sheet->setCellValue('B2', $period);
+            $sheet->setCellValue('A3', 'Branch:');
+            $sheet->setCellValue('B3', $branchId ?: 'All');
+            $sheet->setCellValue('C2', 'Generated:');
+            $sheet->setCellValue('D2', date('c'));
+
+            // Table header starting at row 5
+            $startRow = 5;
+            $col = 1; foreach ($headers as $h) { 
+                $cell = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $startRow;
+                $sheet->setCellValue($cell, $h);
+                $col++;
+            }
+            $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
+            $sheet->getStyle("A{$startRow}:{$lastCol}{$startRow}")->getFont()->setBold(true);
+            $sheet->getStyle("A{$startRow}:{$lastCol}{$startRow}")->getBorders()->getBottom()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
+            $rowNum = $startRow + 1;
+            foreach ($rows as $r) {
+                $col = 1;
+                foreach ($r as $c) {
+                    $cell = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . $rowNum;
+                    $sheet->setCellValue($cell, $c);
+                    $col++;
+                }
+                $rowNum++;
+            }
+
+            // Footer summaries for sales
+            if ($report === 'sales') {
+                $totalOrders = array_sum(array_column($rows, 1));
+                $totalRevenue = array_sum(array_column($rows, 2));
+                $sheet->setCellValue("A{$rowNum}", 'Totals');
+                $sheet->setCellValue("B{$rowNum}", $totalOrders);
+                $sheet->setCellValue("C{$rowNum}", number_format($totalRevenue, 2, '.', ''));
+                $rowNum++;
+                $avg = $totalOrders > 0 ? $totalRevenue / $totalOrders : 0;
+                $sheet->setCellValue("A{$rowNum}", 'Average Order Value');
+                $sheet->setCellValue("C{$rowNum}", number_format($avg, 2, '.', ''));
+            }
+
+            // Header/Footer for print
+            $sheet->getHeaderFooter()->setOddHeader('&C&B' . $title);
+            $sheet->getHeaderFooter()->setOddFooter('&LGenerated: ' . date('Y-m-d H:i') . '&RPage &P of &N');
+
+            for ($i = 1; $i <= count($headers); $i++) { $sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i))->setAutoSize(true); }
+
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
             $filename = $report.'_'.$period.'_'.date('Ymd_His').'.xlsx';
             return response()->streamDownload(function() use ($writer) { $writer->save('php://output'); }, $filename, [
@@ -181,11 +280,37 @@ class ReportsController extends Controller
         }
 
         if ($type === 'pdf' && class_exists('\\Dompdf\\Dompdf')) {
-            $html = '<h3>'.htmlspecialchars($report.' ('.$period.')').'</h3><table border=\"1\" cellspacing=\"0\" cellpadding=\"4\"><thead><tr>';
-            foreach ($headers as $h) { $html .= '<th>'.htmlspecialchars($h).'</th>'; }
+            $generated = date('Y-m-d H:i');
+            $branchLabel = $branchId ?: 'All';
+            $html = '<!doctype html><html><head><meta charset="utf-8"><style>';
+            $html .= 'body{font-family: Arial, Helvetica, sans-serif; color:#111}';
+            $html .= '.header{border-bottom:1px solid #ddd;padding-bottom:10px;margin-bottom:10px}';
+            $html .= '.meta{margin-bottom:12px} .meta td{padding:4px 8px}';
+            $html .= 'table.report{width:100%;border-collapse:collapse}';
+            $html .= 'table.report th, table.report td{border:1px solid #ccc;padding:8px;text-align:left}';
+            $html .= 'table.report th{background:#f3f4f6;font-weight:700}';
+            $html .= '.footer{border-top:1px solid #ddd;margin-top:12px;padding-top:8px;font-size:12px;color:#666;text-align:center}';
+            $html .= '</style></head><body>';
+            $html .= '<div class="header"><h2 style="margin:0">' . htmlspecialchars(ucfirst($report) . ' Report') . '</h2></div>';
+            $html .= '<table class="meta"><tr><td><strong>Period:</strong> ' . htmlspecialchars($period) . '</td><td><strong>Branch:</strong> ' . htmlspecialchars($branchLabel) . '</td><td><strong>Generated:</strong> ' . htmlspecialchars($generated) . '</td></tr></table>';
+            $html .= '<table class="report"><thead><tr>';
+            foreach ($headers as $h) { $html .= '<th>' . htmlspecialchars($h) . '</th>'; }
             $html .= '</tr></thead><tbody>';
-            foreach ($rows as $r) { $html .= '<tr>'; foreach ($r as $c) { $html .= '<td>'.htmlspecialchars((string)$c).'</td>'; } $html .= '</tr>'; }
+            foreach ($rows as $r) { $html .= '<tr>'; foreach ($r as $c) { $html .= '<td>' . htmlspecialchars((string)$c) . '</td>'; } $html .= '</tr>'; }
             $html .= '</tbody></table>';
+
+            if ($report === 'sales') {
+                $totalOrders = array_sum(array_column($rows, 1));
+                $totalRevenue = array_sum(array_column($rows, 2));
+                $avg = $totalOrders > 0 ? $totalRevenue / $totalOrders : 0;
+                $html .= '<div style="margin-top:12px"><strong>Summary</strong><br/>';
+                $html .= 'Total Orders: ' . number_format($totalOrders) . ' &nbsp;|&nbsp; Total Revenue: ' . number_format($totalRevenue,2) . ' &nbsp;|&nbsp; Avg Order Value: ' . number_format($avg,2);
+                $html .= '</div>';
+            }
+
+            $html .= '<div class="footer">Generated by Admin Panel &nbsp;|&nbsp; ' . htmlspecialchars($generated) . '</div>';
+            $html .= '</body></html>';
+
             $dompdf = new \Dompdf\Dompdf();
             $dompdf->loadHtml($html);
             $dompdf->setPaper('A4', 'portrait');
@@ -200,22 +325,53 @@ class ReportsController extends Controller
         return response()->json(['error' => 'Export type not supported'], 422);
     }
 
-    private function fetchOrders(FirebaseService $firebase, string $restaurantId, ?string $branchId = null, ?string $period = null): array
+    private function fetchOrders(FirebaseService $firebase, string $restaurantId, ?string $branchId = null, ?string $period = null, ?string $dateFrom = null, ?string $dateTo = null): array
     {
         $orders = [];
-        if ($branchId) {
-            $resp = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/orders");
+
+        // Prefer querying the top-level `orders` collection with server-side filters
+        // to avoid pulling all documents client-side. This matches OrdersController
+        // and AdminController behavior where orders are stored at root.
+        try {
+            $fieldFilters = [['fieldPath' => 'restaurantId', 'op' => 'EQUAL', 'value' => $restaurantId]];
+            if ($branchId) {
+                $fieldFilters[] = ['fieldPath' => 'branchId', 'op' => 'EQUAL', 'value' => $branchId];
+            }
+
+            $resp = $firebase->runStructuredQuery('orders', $fieldFilters);
             $orders = $resp['documents'] ?? [];
-        } else {
-            $branchesResp = $firebase->getCollection("restaurants/{$restaurantId}/branches");
-            $branchesDocs = $branchesResp['documents'] ?? [];
-            foreach ($branchesDocs as $bd) {
-                $bid = Str::afterLast($bd['name'], '/');
-                $resp = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$bid}/orders");
-                foreach (($resp['documents'] ?? []) as $doc) { $orders[] = $doc; }
+        } catch (\Exception $e) {
+            // If structured query is not supported or fails, fallback to branch-level queries
+            \Log::warning('ReportsController::fetchOrders - structured query failed, falling back to branch scan', ['error' => $e->getMessage()]);
+            if ($branchId) {
+                $resp = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$branchId}/orders");
+                $orders = $resp['documents'] ?? [];
+            } else {
+                $branchesResp = $firebase->getCollection("restaurants/{$restaurantId}/branches");
+                $branchesDocs = $branchesResp['documents'] ?? [];
+                foreach ($branchesDocs as $bd) {
+                    $bid = Str::afterLast($bd['name'], '/');
+                    $resp = $firebase->getCollection("restaurants/{$restaurantId}/branches/{$bid}/orders");
+                    foreach (($resp['documents'] ?? []) as $doc) { $orders[] = $doc; }
+                }
             }
         }
-        if ($period) {
+
+        // Prefer explicit date range when provided
+        if ($dateFrom && $dateTo) {
+            try {
+                $start = Carbon::parse($dateFrom)->startOfDay();
+                $end = Carbon::parse($dateTo)->endOfDay();
+            } catch (\Exception $e) {
+                $start = null; $end = null;
+            }
+            if ($start && $end) {
+                $orders = array_values(array_filter($orders, function($o) use ($start, $end) {
+                    $ts = $this->parseTimestamp($o['fields']['createdAt'] ?? []);
+                    return $ts && $ts->betweenIncluded($start, $end);
+                }));
+            }
+        } elseif ($period) {
             $window = $this->periodWindow($period);
             $orders = array_values(array_filter($orders, function($o) use ($window) {
                 $ts = $this->parseTimestamp($o['fields']['createdAt'] ?? []);
@@ -235,9 +391,15 @@ class ReportsController extends Controller
     private function periodWindow(string $period): array
     {
         $end = Carbon::now();
-        if ($period === 'daily') { $start = $end->copy()->startOfDay(); }
-        elseif ($period === 'weekly') { $start = $end->copy()->startOfWeek(); }
-        else { $start = $end->copy()->startOfMonth(); }
+        if ($period === 'daily') {
+            $start = $end->copy()->startOfDay();
+        } elseif ($period === 'weekly') {
+            $start = $end->copy()->startOfWeek();
+        } elseif ($period === 'monthly') {
+            $start = $end->copy()->startOfMonth();
+        } else { // annual
+            $start = $end->copy()->startOfYear();
+        }
         return ['start' => $start, 'end' => $end];
     }
 
@@ -247,7 +409,15 @@ class ReportsController extends Controller
         foreach ($orders as $o) {
             $ts = $this->parseTimestamp($o['fields']['createdAt'] ?? []);
             if (!$ts) { continue; }
-            $key = $period === 'daily' ? $ts->format('Y-m-d') : ($period === 'weekly' ? $ts->format('o-\WW') : $ts->format('Y-m'));
+            if ($period === 'daily') {
+                $key = $ts->format('Y-m-d');
+            } elseif ($period === 'weekly') {
+                $key = $ts->format('o-\WW');
+            } elseif ($period === 'monthly') {
+                $key = $ts->format('Y-m');
+            } else { // annual
+                $key = $ts->format('Y');
+            }
             $total = $this->extractTotal($o['fields'] ?? []);
             if (!isset($buckets[$key])) { $buckets[$key] = ['period' => $key, 'orders' => 0, 'total' => 0.0]; }
             $buckets[$key]['orders'] += 1;

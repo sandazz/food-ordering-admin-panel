@@ -47,7 +47,7 @@
                 @foreach($cat['items'] as $item)
                   <tr>
                     <td>{{ $item['name'] }}</td>
-                    <td>${{ number_format($item['price'], 2) }}</td>
+                    <td>€{{ number_format($item['price'], 2) }}</td>
                     <td>{{ $item['available'] ? \App\Utils\UIStrings::t('common.yes') : \App\Utils\UIStrings::t('common.no') }}</td>
                     <td class="text-end">
                       <a class="btn btn-sm btn-outline-secondary" href="{{ route('menu.items.edit', [$cat['id'], $item['id']]) }}">{{ \App\Utils\UIStrings::t('common.edit') }}</a>
@@ -106,7 +106,7 @@
                   @foreach($cat['items'] as $item)
                     <tr>
                       <td>{{ $item['name'] }}</td>
-                      <td>${{ number_format($item['price'], 2) }}</td>
+                      <td>€{{ number_format($item['price'], 2) }}</td>
                       <td>{{ $item['available'] ? \App\Utils\UIStrings::t('common.yes') : \App\Utils\UIStrings::t('common.no') }}</td>
                     </tr>
                   @endforeach

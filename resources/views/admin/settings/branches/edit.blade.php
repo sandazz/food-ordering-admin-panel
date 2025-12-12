@@ -76,7 +76,65 @@
       <input type="text" name="country" class="form-control" value="{{ $branch['address']['country'] ?? '' }}">
     </div>
   </div>
+    <hr />
+    <h4>Payment Gateway (optional)</h4>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Gateway Name</label>
+        <input type="text" name="gateway_name" class="form-control" value="{{ old('gateway_name', $paymentConfig['gateway_name'] ?? 'Paytrail') }}">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Merchant ID</label>
+        <input type="text" name="merchant_id" class="form-control" value="{{ old('merchant_id', $paymentConfig['merchant_id'] ?? '') }}" placeholder="Paytrail merchant id">
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-8 mb-3">
+        <label class="form-label">Secret Key</label>
+        <div class="input-group">
+          <input id="editSecretInput" type="password" name="secret_key" class="form-control" value="" placeholder="Enter secret key">
+          <button id="editSecretToggle" type="button" class="btn btn-outline-secondary" aria-label="Toggle secret visibility">
+            <svg id="editIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8z"/>
+              <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/>
+            </svg>
+          </button>
+        </div>
+        <div class="form-text">Leave empty to keep current secret.</div>
+      </div>
+      <div class="col-md-4 mb-3">
+        <label class="form-label">Enabled</label>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="is_active" value="1" {{ old('is_active', ($paymentConfig['is_active'] ?? true)) ? 'checked' : '' }}>
+          <label class="form-check-label">Active</label>
+        </div>
+      </div>
+    </div>
   <a href="{{ route('settings.branches', $restaurantId) }}" class="btn btn-outline-secondary">Cancel</a>
   <button class="btn btn-primary">Update</button>
 </form>
+<script>
+  (function(){
+    function bindToggle(inputId, btnId, iconId){
+      const f = document.getElementById(inputId);
+      const b = document.getElementById(btnId);
+      const icon = document.getElementById(iconId);
+      if(!f || !b || !icon) return;
+      const eyeSvg = '<path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/>';
+      const eyeSlashSvg = '<path d="M13.359 11.238C11.852 12.457 10.03 13 8 13c-5 0-8-5-8-5 .8-1.189 1.843-2.172 3.08-2.998L2.2 3.995 1 5.195 3.264 7.46C2.489 8.217 1.839 8.99 1.362 9.605 2.91 11.481 5.313 13 8 13c2.03 0 3.852-.543 5.359-1.762l-.0 0z"/><path d="M11.95 4.05a7.24 7.24 0 0 1 1.354 1.386c-.695.56-1.46 1.12-2.285 1.64L4.36 2.34 5.64 1.06l6.31 2.99z"/>';
+      b.addEventListener('click', function(){
+        if(f.type === 'password'){
+          f.type = 'text';
+          icon.innerHTML = eyeSlashSvg;
+        } else {
+          f.type = 'password';
+          icon.innerHTML = eyeSvg;
+        }
+      });
+    }
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', function(){ bindToggle('editSecretInput','editSecretToggle','editIcon'); });
+    } else { bindToggle('editSecretInput','editSecretToggle','editIcon'); }
+  })();
+</script>
 @endsection

@@ -58,7 +58,7 @@
               <tr>
                 <td>{{ $sub['name'] }}</td>
                 <td class="text-muted small">{{ $sub['description'] }}</td>
-                <td>{{ number_format($sub['price'], 2) }}</td>
+                <td>€{{ number_format($sub['price'], 2) }}</td>
                 <td class="text-end">
                   <a class="btn btn-sm btn-outline-secondary" href="{{ route('menu.ingredients.sub.edit', [$ing['id'], $sub['id']]) }}@if(!empty($allBranches))?branchId={{ urlencode($ing['branchId']) }}@endif">Edit</a>
                   <form action="{{ route('menu.ingredients.sub.destroy', [$ing['id'], $sub['id']]) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this sub-ingredient?')">
