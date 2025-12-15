@@ -85,11 +85,16 @@
   </div>
   <div class="mb-3">
     <label class="form-label">Offer Price (optional)</label>
-    <input type="number" step="0.01" name="offerPrice" class="form-control" value="{{ $item['offerPrice'] ?? '' }}" placeholder="Enter promotional/discounted price">
+    <div class="input-group">
+      <div class="input-group-text">
+        <input type="checkbox" id="offerPriceAvailable" name="offerPriceAvailable" value="1" onchange="toggleOfferPrice(this)" {{ !empty($item['offerPriceAvailable']) ? 'checked' : '' }}>
+      </div>
+      <input type="number" step="0.01" name="offerPrice" id="offerPriceInput" class="form-control" value="{{ $item['offerPrice'] ?? '' }}" placeholder="Enter promotional/discounted price" {{ empty($item['offerPriceAvailable']) ? 'disabled' : '' }}>
+    </div>
   </div>
   <div class="mb-3 form-check">
-    <input type="checkbox" class="form-check-input" name="available" value="1" id="available" {{ $item['available'] ? 'checked' : '' }}>
-    <label class="form-check-label" for="available">{{ \App\Utils\UIStrings::t('field.available') }}</label>
+    <input type="checkbox" class="form-check-input" name="availability" value="1" id="availability" {{ $item['availability'] ? 'checked' : '' }}>
+    <label class="form-check-label" for="availability">{{ \App\Utils\UIStrings::t('field.available') }}</label>
   </div>
   <div class="mb-3">
     <label class="form-label">{{ \App\Utils\UIStrings::t('field.image_url') }}</label>
@@ -183,5 +188,16 @@ document.addEventListener('change', function(e){
   }
 });
 document.addEventListener('DOMContentLoaded', function(){ syncSizeVisibility(); });
+</script>
+<script>
+function toggleOfferPrice(cb){
+  var inp = document.getElementById('offerPriceInput');
+  if(!inp) return;
+  if(cb.checked){ inp.disabled = false; }
+  else { inp.value = ''; inp.disabled = true; }
+}
+document.addEventListener('DOMContentLoaded', function(){
+  var cb = document.getElementById('offerPriceAvailable'); if(cb){ toggleOfferPrice(cb); }
+});
 </script>
 @endsection

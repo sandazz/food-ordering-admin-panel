@@ -48,13 +48,13 @@
                   <tr>
                     <td>{{ $item['name'] }}</td>
                     <td>€{{ number_format($item['price'], 2) }}</td>
-                    <td>{{ $item['available'] ? \App\Utils\UIStrings::t('common.yes') : \App\Utils\UIStrings::t('common.no') }}</td>
+                    <td>{{ $item['availability'] ? \App\Utils\UIStrings::t('common.yes') : \App\Utils\UIStrings::t('common.no') }}</td>
                     <td class="text-end">
                       <a class="btn btn-sm btn-outline-secondary" href="{{ route('menu.items.edit', [$cat['id'], $item['id']]) }}">{{ \App\Utils\UIStrings::t('common.edit') }}</a>
                       <form action="{{ route('menu.items.toggle', [$cat['id'], $item['id']]) }}" method="POST" class="d-inline">
                         @csrf
                         @method('PATCH')
-                        @if($item['available'])
+                        @if($item['availability'])
                           <button class="btn btn-sm btn-outline-warning">Unavailable</button>
                         @else
                           <button class="btn btn-sm btn-outline-success">Available</button>
@@ -107,7 +107,7 @@
                     <tr>
                       <td>{{ $item['name'] }}</td>
                       <td>€{{ number_format($item['price'], 2) }}</td>
-                      <td>{{ $item['available'] ? \App\Utils\UIStrings::t('common.yes') : \App\Utils\UIStrings::t('common.no') }}</td>
+                      <td>{{ $item['availability'] ? \App\Utils\UIStrings::t('common.yes') : \App\Utils\UIStrings::t('common.no') }}</td>
                     </tr>
                   @endforeach
                 </tbody>
