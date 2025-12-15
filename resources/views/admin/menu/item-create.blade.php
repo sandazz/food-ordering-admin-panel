@@ -78,7 +78,12 @@
   </div>
   <div class="mb-3">
     <label class="form-label">Offer Price (optional)</label>
-    <input type="number" step="0.01" name="offerPrice" class="form-control" placeholder="Enter promotional/discounted price">
+    <div class="input-group">
+      <div class="input-group-text">
+        <input type="checkbox" id="offerPriceAvailable" name="offerPriceAvailable" value="1" onchange="toggleOfferPrice(this)">
+      </div>
+      <input type="number" step="0.01" name="offerPrice" id="offerPriceInput" class="form-control" placeholder="Enter promotional/discounted price" disabled>
+    </div>
   </div>
   <div class="mb-3 form-check">
     <input type="checkbox" class="form-check-input" name="availability" value="1" checked id="availability">
@@ -172,5 +177,16 @@ document.addEventListener('change', function(e){
   }
 });
 document.addEventListener('DOMContentLoaded', function(){ syncSizeVisibility(); });
+</script>
+<script>
+function toggleOfferPrice(cb){
+  var inp = document.getElementById('offerPriceInput');
+  if(!inp) return;
+  if(cb.checked){ inp.disabled = false; }
+  else { inp.value = ''; inp.disabled = true; }
+}
+document.addEventListener('DOMContentLoaded', function(){
+  var cb = document.getElementById('offerPriceAvailable'); if(cb){ toggleOfferPrice(cb); }
+});
 </script>
 @endsection

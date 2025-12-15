@@ -460,6 +460,7 @@ class MenuController extends Controller
             'description_fi' => 'nullable|string|max:500',
             'price' => 'required|numeric|min:0',
             'offerPrice' => 'nullable|numeric|min:0',
+            'offerPriceAvailable' => 'nullable|boolean',
             'availability' => 'nullable|boolean',
             'imageUrl' => 'nullable|url',
             'image' => 'nullable|image|max:4096',
@@ -506,6 +507,7 @@ class MenuController extends Controller
         }
         $finalPrice = isset($data['price']) && $data['price']!==null && $data['price']!=='' ? (float)$data['price'] : 0.0;
         $finalOfferPrice = isset($data['offerPrice']) && $data['offerPrice']!==null && $data['offerPrice']!=='' ? (float)$data['offerPrice'] : 0.0;
+        $offerPriceAvailableFlag = (bool) ($data['offerPriceAvailable'] ?? false);
         $itemId = 'item_' . Str::random(6);
         $imageUrl = $data['imageUrl'] ?? '';
         if ($request->hasFile('image')) {
@@ -519,10 +521,14 @@ class MenuController extends Controller
             'description_en' => $data['description_en'] ?? '',
             'description_fi' => $data['description_fi'] ?? '',
             'price' => $finalPrice,
-            'offerPrice' => $finalOfferPrice,
             'availability' => (bool) ($data['availability'] ?? true),
+            'offerPriceAvailable' => $offerPriceAvailableFlag,
             'imageUrl' => $imageUrl,
         ];
+        // Only persist offerPrice when offerPriceAvailable is checked and a value provided
+        if ($offerPriceAvailableFlag && isset($data['offerPrice']) && $data['offerPrice'] !== null && $data['offerPrice'] !== '') {
+            $payload['offerPrice'] = (float)$data['offerPrice'];
+        }
         // Create item document
         $firebase->createDocument($basePath, $payload, $itemId);
         // Create subcollections for sizes and bases
@@ -605,6 +611,7 @@ class MenuController extends Controller
             'price' => isset($f['price']['doubleValue']) ? (float)$f['price']['doubleValue'] : (float)($f['price']['integerValue'] ?? 0),
             'offerPrice' => isset($f['offerPrice']['doubleValue']) ? (float)$f['offerPrice']['doubleValue'] : (float)($f['offerPrice']['integerValue'] ?? 0),
             'availability' => (bool) ($f['availability']['booleanValue'] ?? false),
+            'offerPriceAvailable' => (bool) ($f['offerPriceAvailable']['booleanValue'] ?? false),
             'imageUrl' => $f['imageUrl']['stringValue'] ?? '',
         ];
         // Load sizes/bases subcollections for editing
@@ -708,6 +715,7 @@ class MenuController extends Controller
             'description_fi' => 'nullable|string|max:500',
             'price' => 'required|numeric|min:0',
             'offerPrice' => 'nullable|numeric|min:0',
+            'offerPriceAvailable' => 'nullable|boolean',
             'availability' => 'nullable|boolean',
             'imageUrl' => 'nullable|url',
             'image' => 'nullable|image|max:4096',
@@ -765,11 +773,21 @@ class MenuController extends Controller
             'description_fi' => $data['description_fi'] ?? '',
             'price' => $finalPrice,
             'availability' => (bool) ($data['availability'] ?? true),
+            'offerPriceAvailable' => (bool) ($data['offerPriceAvailable'] ?? false),
             'imageUrl' => $imageUrl,
         ];
         // Save offerPrice if provided (do not overwrite when left blank)
-        if (array_key_exists('offerPrice', $data) && $data['offerPrice'] !== null && $data['offerPrice'] !== '') {
-            $payload['offerPrice'] = (float)$data['offerPrice'];
+        // If offerAvailable checked, update offerPrice (allow clearing when unchecked)
+        if (!empty($data['offerPriceAvailable'])) {
+            if (array_key_exists('offerPrice', $data) && $data['offerPrice'] !== null && $data['offerPrice'] !== '') {
+                $payload['offerPrice'] = (float)$data['offerPrice'];
+            } else {
+                // Explicitly clear offerPrice when offerPriceAvailable is set but no value provided
+                $payload['offerPrice'] = null;
+            }
+        } else {
+            // If offer not available, ensure offerPrice is cleared
+            $payload['offerPrice'] = null;
         }
         // Attach before/after for item
         $existing = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId);
