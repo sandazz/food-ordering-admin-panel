@@ -51,6 +51,16 @@
     </div>
   </div>
   <div class="row">
+    <div class="col-md-3 mb-3">
+      <label class="form-label">Tax Rate</label>
+      <input type="number" step="0.01" name="taxRate" class="form-control" value="0">
+    </div>
+    <div class="col-md-3 mb-3">
+      <label class="form-label">Service Charge</label>
+      <input type="number" step="0.01" name="serviceCharge" class="form-control" value="0">
+    </div>
+  </div>
+  <div class="row">
     <div class="col-md-6 mb-3">
       <label class="form-label">Upload Image</label>
       <input type="file" name="image" id="branchImageInput" class="form-control" accept="image/*" required>

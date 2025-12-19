@@ -76,6 +76,16 @@
       <input type="text" name="country" class="form-control" value="{{ $branch['address']['country'] ?? '' }}">
     </div>
   </div>
+  <div class="row">
+    <div class="col-md-3 mb-3">
+      <label class="form-label">Tax Rate</label>
+      <input type="number" step="0.01" name="taxRate" class="form-control" value="{{ $branch['taxRate'] ?? 0 }}">
+    </div>
+    <div class="col-md-3 mb-3">
+      <label class="form-label">Service Charge</label>
+      <input type="number" step="0.01" name="serviceCharge" class="form-control" value="{{ $branch['serviceCharge'] ?? 0 }}">
+    </div>
+  </div>
     <hr />
     <h4>Payment Gateway (optional)</h4>
     <div class="row">

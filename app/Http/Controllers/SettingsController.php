@@ -328,6 +328,8 @@ class SettingsController extends Controller
             'state' => 'nullable|string|max:120',
             'zipCode' => 'nullable|string|max:30',
             'country' => 'nullable|string|max:120',
+            'taxRate' => 'nullable|numeric|min:0',
+            'serviceCharge' => 'nullable|numeric|min:0',
             'image' => 'nullable|image|max:4096',
             // Optional payment gateway credentials for branch
             // If either merchant_id or secret_key is present, require the other
@@ -349,6 +351,8 @@ class SettingsController extends Controller
             'status' => $data['status'],
             'businessId' => $data['businessId'] ?? '',
             'imageUrl' => $imageUrl,
+            'taxRate' => (float)($data['taxRate'] ?? 0),
+            'serviceCharge' => (float)($data['serviceCharge'] ?? 0),
             'address' => [
                 'street' => $data['street'] ?? '',
                 'city' => $data['city'] ?? '',
@@ -387,6 +391,8 @@ class SettingsController extends Controller
             'status' => $f['status']['stringValue'] ?? 'open',
             'imageUrl' => $f['imageUrl']['stringValue'] ?? '',
             'businessId' => $f['businessId']['stringValue'] ?? '',
+            'taxRate' => isset($f['taxRate']['doubleValue']) ? (float)$f['taxRate']['doubleValue'] : (float)($f['taxRate']['integerValue'] ?? 0),
+            'serviceCharge' => isset($f['serviceCharge']['doubleValue']) ? (float)$f['serviceCharge']['doubleValue'] : (float)($f['serviceCharge']['integerValue'] ?? 0),
             'address' => [
                 'street' => $f['address']['mapValue']['fields']['street']['stringValue'] ?? '',
                 'city' => $f['address']['mapValue']['fields']['city']['stringValue'] ?? '',
@@ -423,6 +429,8 @@ class SettingsController extends Controller
             'state' => 'nullable|string|max:120',
             'zipCode' => 'nullable|string|max:30',
             'country' => 'nullable|string|max:120',
+            'taxRate' => 'nullable|numeric|min:0',
+            'serviceCharge' => 'nullable|numeric|min:0',
             'image' => 'nullable|image|max:4096',
             // Optional payment gateway credentials for branch
             'merchant_id' => 'nullable|string|max:255',
@@ -440,6 +448,8 @@ class SettingsController extends Controller
             'status' => $data['status'],
             'businessId' => $data['businessId'] ?? '',
             ...(isset($imageUrl) && $imageUrl !== null ? ['imageUrl' => $imageUrl] : []),
+            'taxRate' => (float)($data['taxRate'] ?? 0),
+            'serviceCharge' => (float)($data['serviceCharge'] ?? 0),
             'address' => [
                 'street' => $data['street'] ?? '',
                 'city' => $data['city'] ?? '',
