@@ -15,6 +15,7 @@ use Paytrail\SDK\Request\PaymentRequest as PaytrailPaymentRequest;
 use Paytrail\SDK\Request\PaymentStatusRequest as PaytrailPaymentStatusRequest;
 use Paytrail\SDK\Model\Customer as PaytrailCustomer;
 use Paytrail\SDK\Model\CallbackUrl as PaytrailCallbackUrl;
+use Illuminate\Support\Facades\Crypt;
 
 class PaymentController extends Controller
 {
@@ -29,32 +30,38 @@ class PaymentController extends Controller
     {
         $validated = $request->validate([
             'branch_id' => ['required', 'string'],
+            'restaurant_id' => ['required', 'string'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'order_id' => ['required', 'string'],
             'customer_email' => ['required', 'email'],
         ]);
 
         $branchId = $validated['branch_id'];
+        $restaurantId = $validated['restaurant_id'];
         $orderId = $validated['order_id'];
         $amountCents = (int) round(((float) $validated['amount']) * 100);
 
         try {
-            $branchDoc = $this->firestore->getDocument('branches', $branchId);
+            // Branch documents are stored under restaurants/{restaurantId}/branches/{branchId}
+            $branchDoc = $this->firestore->getDocument("restaurants/{$restaurantId}/branches", $branchId);
             $branchData = $this->decodeFirestoreDocument($branchDoc);
             if (!$branchData) {
                 return response()->json(['message' => 'Branch not found'], Response::HTTP_NOT_FOUND);
             }
 
-            $cfg = $branchData['paytrail_config'] ?? null;
-            if (!$cfg || empty($cfg['merchant_id']) || empty($cfg['secret_key'])) {
-                Log::warning('Missing Paytrail config for branch', ['branch_id' => $branchId]);
+            $creds = $this->resolvePaytrailConfig($branchData);
+            if (!$creds) {
+                Log::warning('Missing Paytrail config for branch', ['restaurant_id' => $restaurantId, 'branch_id' => $branchId]);
                 return response()->json(['message' => 'Branch payment configuration missing'], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            $baseUrl = rtrim(config('app.url', $request->getSchemeAndHttpHost()), '/');
+            // Paytrail requires callback/redirect URLs to use https and not be raw IPs.
+            // Allow overriding the base URL via the PAYTRAIL_CALLBACK_BASE_URL env var
+            // (use an ngrok/secure tunnel URL during local development).
+            $baseUrl = rtrim(env('PAYTRAIL_CALLBACK_BASE_URL', config('app.url', $request->getSchemeAndHttpHost())), '/');
 
             // Build SDK payment request
-            $sdkClient = new PaytrailSdkClient((int) $cfg['merchant_id'], (string) $cfg['secret_key'], (string) config('app.name', 'Laravel'));
+            $sdkClient = new PaytrailSdkClient((int) $creds['merchant_id'], (string) $creds['secret_key'], (string) config('app.name', 'Laravel'));
             $paymentReq = (new PaytrailPaymentRequest())
                 ->setAmount($amountCents)
                 ->setReference($orderId)
@@ -66,10 +73,10 @@ class PaymentController extends Controller
                     ->setSuccess($baseUrl . '/payment/success')
                     ->setCancel($baseUrl . '/payment/cancel')
                 )
-                ->setCallbackUrls((new PaytrailCallbackUrl())
-                    ->setSuccess($baseUrl . '/api/payments/callback?branch_id=' . urlencode($branchId))
-                    ->setCancel($baseUrl . '/api/payments/callback?branch_id=' . urlencode($branchId))
-                );
+                    ->setCallbackUrls((new PaytrailCallbackUrl())
+                        ->setSuccess($baseUrl . '/api/payments/callback?restaurant_id=' . urlencode($restaurantId) . '&branch_id=' . urlencode($branchId))
+                        ->setCancel($baseUrl . '/api/payments/callback?restaurant_id=' . urlencode($restaurantId) . '&branch_id=' . urlencode($branchId))
+                    );
 
             $sdkResponse = $sdkClient->createPayment($paymentReq);
             $paymentUrl = $sdkResponse->getHref();
@@ -81,6 +88,7 @@ class PaymentController extends Controller
             $this->firestore->createDocument('orders', [
                 'order_id' => $orderId,
                 'branch_id' => $branchId,
+                'restaurant_id' => $restaurantId,
                 'amount' => (float) $validated['amount'],
                 'status' => 'pending',
                 'created_at' => now()->toIso8601String(),
@@ -93,19 +101,20 @@ class PaymentController extends Controller
                 'order_id' => $orderId,
                 'error' => $e->getMessage(),
             ]);
-            return response()->json(['message' => 'Payment initiation error'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return $this->formatExceptionResponse($e, Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     public function callback(Request $request)
     {
+        $restaurantId = (string) $request->query('restaurant_id');
         $branchId = (string) $request->query('branch_id');
-        if (!$branchId) {
-            return response('branch_id required', Response::HTTP_BAD_REQUEST);
+        if (!$restaurantId || !$branchId) {
+            return response('restaurant_id and branch_id required', Response::HTTP_BAD_REQUEST);
         }
 
         try {
-            $branchDoc = $this->firestore->getDocument('branches', $branchId);
+            $branchDoc = $this->firestore->getDocument("restaurants/{$restaurantId}/branches", $branchId);
             $branchData = $this->decodeFirestoreDocument($branchDoc);
             if (!$branchData || empty($branchData['paytrail_config']['secret_key'])) {
                 Log::warning('Callback for unknown branch', ['branch_id' => $branchId]);
@@ -138,32 +147,33 @@ class PaymentController extends Controller
                 'branch_id' => $branchId,
                 'error' => $e->getMessage(),
             ]);
-            return response('OK', Response::HTTP_OK);
+            return $this->formatExceptionResponse($e, Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     // Optional: Payment Status endpoint using SDK
     public function status(Request $request)
     {
+        $restaurantId = (string) $request->query('restaurant_id');
         $branchId = (string) $request->query('branch_id');
         $transactionId = (string) $request->query('transaction_id');
-        if (!$branchId || !$transactionId) {
-            return response()->json(['message' => 'branch_id and transaction_id are required'], Response::HTTP_BAD_REQUEST);
+        if (!$restaurantId || !$branchId || !$transactionId) {
+            return response()->json(['message' => 'restaurant_id, branch_id and transaction_id are required'], Response::HTTP_BAD_REQUEST);
         }
 
         try {
-            $branchDoc = $this->firestore->getDocument('branches', $branchId);
+            $branchDoc = $this->firestore->getDocument("restaurants/{$restaurantId}/branches", $branchId);
             $branchData = $this->decodeFirestoreDocument($branchDoc);
             if (!$branchData) {
                 return response()->json(['message' => 'Branch not found'], Response::HTTP_NOT_FOUND);
             }
 
-            $cfg = $branchData['paytrail_config'] ?? null;
-            if (!$cfg || empty($cfg['merchant_id']) || empty($cfg['secret_key'])) {
-                return response()->json(['message' => 'Branch payment configuration missing'], Response::HTTP_UNPROCESSABLE_ENTITY);
-            }
+                $creds = $this->resolvePaytrailConfig($branchData);
+                if (!$creds) {
+                    return response()->json(['message' => 'Branch payment configuration missing'], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
 
-            $sdkClient = new PaytrailSdkClient((int) $cfg['merchant_id'], (string) $cfg['secret_key'], (string) config('app.name', 'Laravel'));
+            $sdkClient = new PaytrailSdkClient((int) $creds['merchant_id'], (string) $creds['secret_key'], (string) config('app.name', 'Laravel'));
             $statusReq = (new PaytrailPaymentStatusRequest())->setTransactionId($transactionId);
             $statusRes = $sdkClient->getPaymentStatus($statusReq);
 
@@ -178,25 +188,25 @@ class PaymentController extends Controller
             ], Response::HTTP_OK);
         } catch (\Throwable $e) {
             Log::error('Payment status fetch failed', ['branch_id' => $branchId, 'transaction_id' => $transactionId, 'error' => $e->getMessage()]);
-            return response()->json(['message' => 'Unable to fetch status'], Response::HTTP_BAD_GATEWAY);
+            return $this->formatExceptionResponse($e, Response::HTTP_BAD_GATEWAY);
         }
     }
 
-    public function adminHistory(Request $request, string $branchId)
+    public function adminHistory(Request $request, string $restaurantId, string $branchId)
     {
         try {
-            $branchDoc = $this->firestore->getDocument('branches', $branchId);
+            $branchDoc = $this->firestore->getDocument("restaurants/{$restaurantId}/branches", $branchId);
             $branchData = $this->decodeFirestoreDocument($branchDoc);
             if (!$branchData) {
                 return response()->json(['message' => 'Branch not found'], Response::HTTP_NOT_FOUND);
             }
 
-            $cfg = $branchData['paytrail_config'] ?? null;
-            if (!$cfg || empty($cfg['merchant_id']) || empty($cfg['secret_key'])) {
+            $creds = $this->resolvePaytrailConfig($branchData);
+            if (!$creds) {
                 return response()->json(['message' => 'Branch payment configuration missing'], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            $client = new PaytrailClient((string) $cfg['merchant_id'], (string) $cfg['secret_key']);
+            $client = new PaytrailClient((string) $creds['merchant_id'], (string) $creds['secret_key']);
             $from = (string) $request->query('from', now()->subDays(7)->toDateString());
             $to = (string) $request->query('to', now()->toDateString());
             $report = $client->getPaymentReport([
@@ -210,7 +220,7 @@ class PaymentController extends Controller
                 'branch_id' => $branchId,
                 'error' => $e->getMessage(),
             ]);
-            return response()->json(['message' => 'Unable to fetch history'], Response::HTTP_BAD_GATEWAY);
+            return $this->formatExceptionResponse($e, Response::HTTP_BAD_GATEWAY);
         }
     }
 
@@ -273,5 +283,62 @@ class PaymentController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Resolve Paytrail credentials from branch document. Supports two shapes:
+     * - paytrail_config: { merchant_id, secret_key }
+     * - paymentConfig: { merchantId, secretKeyEnc }
+     * Returns ['merchant_id'=>string, 'secret_key'=>string] or null if missing/invalid.
+     */
+    protected function resolvePaytrailConfig(array $branchData): ?array
+    {
+        // Preferred modern shape
+        if (isset($branchData['paytrail_config']) && is_array($branchData['paytrail_config'])) {
+            $pc = $branchData['paytrail_config'];
+            if (!empty($pc['merchant_id']) && !empty($pc['secret_key'])) {
+                return [
+                    'merchant_id' => (string) $pc['merchant_id'],
+                    'secret_key' => (string) $pc['secret_key'],
+                ];
+            }
+        }
+
+        // Legacy / alternative shape used by admin UI
+        if (!empty($branchData['paymentConfig']) && is_array($branchData['paymentConfig'])) {
+            $alt = $branchData['paymentConfig'];
+            if (!empty($alt['merchantId']) && !empty($alt['secretKeyEnc'])) {
+                try {
+                    $secret = Crypt::decryptString($alt['secretKeyEnc']);
+                } catch (\Throwable $e) {
+                    Log::error('Unable to decrypt branch payment secret', ['error' => $e->getMessage()]);
+                    return null;
+                }
+                return [
+                    'merchant_id' => (string) $alt['merchantId'],
+                    'secret_key' => (string) $secret,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Build a standardized error response for exceptions.
+     * Includes message always and stack trace only when app.debug is true.
+     */
+    protected function formatExceptionResponse(\Throwable $e, int $status = Response::HTTP_INTERNAL_SERVER_ERROR)
+    {
+        $body = [
+            'message' => $e->getMessage(),
+            'exception' => get_class($e),
+        ];
+
+        if (config('app.debug')) {
+            $body['trace'] = $e->getTraceAsString();
+        }
+
+        return response()->json($body, $status);
     }
 }

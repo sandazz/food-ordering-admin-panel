@@ -191,14 +191,11 @@ Route::prefix('api/v1')->middleware([\App\Http\Middleware\AdminMiddleware::class
     Route::post('/payments/webhook', [\App\Http\Controllers\PaymentController::class, 'webhook']);
 });
 
-// Public API endpoints (stateless) for payments broker
-Route::prefix('api')->group(function () {
-    Route::prefix('payments')->group(function () {
-        Route::post('initiate', [\App\Http\Controllers\PaymentController::class, 'initiate']);
-        Route::get('callback', [\App\Http\Controllers\PaymentController::class, 'callback']);
-        Route::get('status', [\App\Http\Controllers\PaymentController::class, 'status']);
-    });
-    Route::middleware('admin')->prefix('admin')->group(function () {
-        Route::get('history/{branch_id}', [\App\Http\Controllers\PaymentController::class, 'adminHistory']);
-    });
-});
+// (Payment API routes are registered in routes/api.php)
+
+// Swagger UI for API docs (serves public/swagger/openapi.json)
+Route::get('/api/docs', function () {
+    return view('swagger.ui');
+})->name('api.docs');
+
+// Note: public API routes are defined in routes/api.php
