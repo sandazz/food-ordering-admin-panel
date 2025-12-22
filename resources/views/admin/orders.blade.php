@@ -105,6 +105,7 @@
             <div class="card-body text-center">
                 <i class="bi bi-currency-dollar text-info" style="font-size: 2rem;"></i>
                 <h4 class="mb-1 mt-2">€{{ number_format($totalRevenue, 2) }}</h4>
+                <p class="text-muted mb-0">Revenue</p>
             </div>
         </div>
     </div>
