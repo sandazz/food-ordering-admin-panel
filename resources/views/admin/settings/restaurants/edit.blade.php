@@ -50,7 +50,11 @@
       <option value="inactive" {{ $restaurant['status']==='inactive'?'selected':'' }}>Inactive</option>
     </select>
   </div>
-  <a href="{{ route('settings.restaurants') }}" class="btn btn-outline-secondary">Cancel</a>
+  @if(session('role') === 'admin')
+    <a href="{{ route('settings.restaurants') }}" class="btn btn-outline-secondary">Cancel</a>
+  @else
+    <a href="{{ route('settings.context') }}" class="btn btn-outline-secondary">Cancel</a>
+  @endif
   <button class="btn btn-primary">Update</button>
 </form>
 @endsection
