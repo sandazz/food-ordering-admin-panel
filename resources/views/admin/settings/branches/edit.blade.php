@@ -79,11 +79,15 @@
   <div class="row">
     <div class="col-md-3 mb-3">
       <label class="form-label">Tax Rate</label>
-      <input type="number" step="0.01" name="taxRate" class="form-control" value="{{ $branch['taxRate'] ?? 0 }}">
+      <input type="number" step="0.01" name="taxRate" class="form-control" value="{{ old('taxRate', $branch['taxRate'] ?? 0) }}">
     </div>
     <div class="col-md-3 mb-3">
       <label class="form-label">Service Charge</label>
-      <input type="number" step="0.01" name="serviceCharge" class="form-control" value="{{ $branch['serviceCharge'] ?? 0 }}">
+      <input type="number" step="0.01" name="serviceCharge" class="form-control" value="{{ old('serviceCharge', $branch['serviceCharge'] ?? 0) }}">
+    </div>
+    <div class="col-md-3 mb-3">
+      <label class="form-label">Delivery Charge</label>
+      <input type="number" step="0.01" name="deliveryCharge" class="form-control" value="{{ old('deliveryCharge', $branch['deliveryCharge'] ?? 0) }}">
     </div>
   </div>
     <hr />

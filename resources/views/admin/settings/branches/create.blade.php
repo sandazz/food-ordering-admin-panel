@@ -53,11 +53,15 @@
   <div class="row">
     <div class="col-md-3 mb-3">
       <label class="form-label">Tax Rate</label>
-      <input type="number" step="0.01" name="taxRate" class="form-control" value="0">
+      <input type="number" step="0.01" name="taxRate" class="form-control" value="{{ old('taxRate', 0) }}">
     </div>
     <div class="col-md-3 mb-3">
       <label class="form-label">Service Charge</label>
-      <input type="number" step="0.01" name="serviceCharge" class="form-control" value="0">
+      <input type="number" step="0.01" name="serviceCharge" class="form-control" value="{{ old('serviceCharge', 0) }}">
+    </div>
+    <div class="col-md-3 mb-3">
+      <label class="form-label">Delivery Charge</label>
+      <input type="number" step="0.01" name="deliveryCharge" class="form-control" value="{{ old('deliveryCharge', 0) }}">
     </div>
   </div>
   <div class="row">
