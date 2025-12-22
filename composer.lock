@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "432344948c585d0d40607df8c5094926",
+    "content-hash": "c8c60255c93f2e55d0bae13873b40d0c",
     "packages": [
         {
             "name": "beste/clock",
@@ -4166,6 +4166,65 @@
                 }
             ],
             "time": "2025-11-20T02:34:59+00:00"
+        },
+        {
+            "name": "paytrail/paytrail-php-sdk",
+            "version": "2.7.6",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/paytrail/paytrail-php-sdk.git",
+                "reference": "1f7eabe72312212a399cb65a6c0aec2556bf2777"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/paytrail/paytrail-php-sdk/zipball/1f7eabe72312212a399cb65a6c0aec2556bf2777",
+                "reference": "1f7eabe72312212a399cb65a6c0aec2556bf2777",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-json": "*",
+                "ext-mbstring": "*",
+                "php": ">=7.3"
+            },
+            "require-dev": {
+                "guzzlehttp/guzzle": "^7.0|^6.0",
+                "mockery/mockery": "^1.5",
+                "phpcompatibility/php-compatibility": "^9.3",
+                "phpmd/phpmd": "^2.10",
+                "phpstan/phpstan": "1.12.16",
+                "phpunit/phpunit": "^10.0 || ^9.0",
+                "squizlabs/php_codesniffer": "^3.6"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Tests\\": "tests/",
+                    "Paytrail\\SDK\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Joonas Loueranta",
+                    "email": "joonas.loueranta@paytrail.com",
+                    "homepage": "https://github.com/loueranta",
+                    "role": "Manager"
+                }
+            ],
+            "description": "PHP Software Development Kit for Paytrail payment service",
+            "keywords": [
+                "payment service provider",
+                "paytrail"
+            ],
+            "support": {
+                "issues": "https://github.com/paytrail/paytrail-php-sdk/issues",
+                "source": "https://github.com/paytrail/paytrail-php-sdk/tree/2.7.6"
+            },
+            "time": "2025-12-16T12:58:32+00:00"
         },
         {
             "name": "phenx/php-font-lib",

@@ -190,3 +190,12 @@ Route::prefix('api/v1')->middleware([\App\Http\Middleware\AdminMiddleware::class
     Route::post('/payments/initiate', [\App\Http\Controllers\PaymentController::class, 'initiate']);
     Route::post('/payments/webhook', [\App\Http\Controllers\PaymentController::class, 'webhook']);
 });
+
+// (Payment API routes are registered in routes/api.php)
+
+// Swagger UI for API docs (serves public/swagger/openapi.json)
+Route::get('/api/docs', function () {
+    return view('swagger.ui');
+})->name('api.docs');
+
+// Note: public API routes are defined in routes/api.php

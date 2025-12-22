@@ -33,4 +33,25 @@ class PaytrailClient
             'raw' => $body,
         ];
     }
+
+    public function getPaymentReport(array $params = []): array
+    {
+        $query = [];
+        if (!empty($params['from'])) $query['from'] = $params['from'];
+        if (!empty($params['to'])) $query['to'] = $params['to'];
+
+        $resp = $this->client->get('/payments/report', [
+            'query' => $query,
+            'headers' => [
+                'Authorization' => 'Basic ' . base64_encode($this->merchantId . ':' . $this->secret),
+                'Accept' => 'application/json',
+            ],
+        ]);
+
+        $body = json_decode($resp->getBody()->getContents(), true);
+        if (is_array($body)) {
+            return $body;
+        }
+        return [];
+    }
 }

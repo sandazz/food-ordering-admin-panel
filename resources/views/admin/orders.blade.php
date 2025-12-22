@@ -321,23 +321,23 @@
                                 <table class="table table-sm">
                                     <tr>
                                         <td>Subtotal:</td>
-                                        <td class="text-end">${{ number_format($order['subtotal'], 2) }}</td>
+                                        <td class="text-end">€{{ number_format($order['subtotal'], 2) }}</td>
                                     </tr>
                                     <tr>
                                         <td>Delivery Fee:</td>
-                                        <td class="text-end">${{ number_format($order['deliveryFee'], 2) }}</td>
+                                        <td class="text-end">€{{ number_format($order['deliveryFee'], 2) }}</td>
                                     </tr>
                                     <tr>
                                         <td>Discount:</td>
-                                        <td class="text-end">-${{ number_format($order['discount'], 2) }}</td>
+                                        <td class="text-end">-€{{ number_format($order['discount'], 2) }}</td>
                                     </tr>
                                     <tr>
                                         <td>Tax:</td>
-                                        <td class="text-end">${{ number_format($order['taxAmount'], 2) }}</td>
+                                        <td class="text-end">€{{ number_format($order['taxAmount'], 2) }}</td>
                                     </tr>
                                     <tr class="fw-bold">
                                         <td>Total Amount:</td>
-                                        <td class="text-end">${{ number_format($order['totalAmount'], 2) }}</td>
+                                        <td class="text-end">€{{ number_format($order['totalAmount'], 2) }}</td>
                                     </tr>
                                 </table>
                             </div>

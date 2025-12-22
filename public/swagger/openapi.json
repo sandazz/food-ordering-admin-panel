@@ -1,0 +1,74 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Food Ordering - Payment Broker API",
+    "version": "1.0.0",
+    "description": "APIs for multi-branch Paytrail payment broker"
+  },
+  "servers": [
+    { "url": "/", "description": "Local" }
+  ],
+  "paths": {
+    "/api/payments/initiate": {
+      "post": {
+        "summary": "Initiate payment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "restaurant_id": { "type": "string" },
+                  "branch_id": { "type": "string" },
+                  "amount": { "type": "number", "format": "float" },
+                  "order_id": { "type": "string" },
+                  "customer_email": { "type": "string", "format": "email" }
+                },
+                "required": ["restaurant_id","branch_id","amount","order_id","customer_email"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Returns payment_url", "content": { "application/json": { "schema": { "type":"object","properties": {"payment_url":{"type":"string"}}}}}},
+          "422": { "description": "Validation error" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/api/payments/callback": {
+      "get": {
+        "summary": "Paytrail callback / webhook",
+        "parameters": [
+          { "name": "restaurant_id", "in": "query", "schema": {"type":"string"}, "required": true },
+          { "name": "branch_id", "in": "query", "schema": {"type":"string"}, "required": true },
+          { "name": "checkout-reference", "in": "query", "schema": {"type":"string"} },
+          { "name": "checkout-transaction-id", "in": "query", "schema": {"type":"string"} },
+          { "name": "checkout-status", "in": "query", "schema": {"type":"string"} }
+        ],
+        "responses": { "200": { "description": "OK" }, "403": { "description": "Forbidden (invalid signature)" } }
+      }
+    },
+    "/api/payments/status": {
+      "get": {
+        "summary": "Check payment status",
+        "parameters": [
+          { "name": "branch_id", "in": "query", "schema": {"type":"string"}, "required": true },
+          { "name": "transaction_id", "in": "query", "schema": {"type":"string"}, "required": true }
+        ],
+        "responses": { "200": { "description": "Status returned", "content": {"application/json": {"schema": {"type":"object"}}}}}
+      }
+    },
+    "/api/admin/history/{branch_id}": {
+      "get": {
+        "summary": "Admin: branch payment history",
+        "parameters": [
+          { "name": "restaurant_id", "in": "path", "schema": {"type":"string"}, "required": true },
+          { "name": "branch_id", "in": "path", "schema": {"type":"string"}, "required": true }
+        ],
+        "responses": { "200": { "description": "Transaction list" }, "401": { "description": "Unauthorized" } }
+      }
+    }
+  }
+}
