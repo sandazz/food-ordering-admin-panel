@@ -25,14 +25,7 @@
         <img id="logoPreview" src="{{ $restaurant['logoUrl'] ?? '' }}" alt="Logo" style="max-height:80px;{{ empty($restaurant['logoUrl']) ? 'display:none;' : '' }}"/>
       </div>
     </div>
-    <div class="col-md-3 mb-3">
-      <label class="form-label">Tax Rate</label>
-      <input type="number" step="0.01" name="taxRate" class="form-control" value="{{ $restaurant['taxRate'] }}">
-    </div>
-    <div class="col-md-3 mb-3">
-      <label class="form-label">Service Charge</label>
-      <input type="number" step="0.01" name="serviceCharge" class="form-control" value="{{ $restaurant['serviceCharge'] }}">
-    </div>
+    
   </div>
   <script>
     (function(){
