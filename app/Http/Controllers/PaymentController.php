@@ -60,6 +60,18 @@ class PaymentController extends Controller
             // (use an ngrok/secure tunnel URL during local development).
             $baseUrl = rtrim(env('PAYTRAIL_CALLBACK_BASE_URL', config('app.url', $request->getSchemeAndHttpHost())), '/');
 
+            // Validate base URL: must be https and host must not be an IP address
+            $parts = parse_url($baseUrl);
+            $scheme = $parts['scheme'] ?? null;
+            $host = $parts['host'] ?? null;
+            if ($scheme !== 'https' || !$host || filter_var($host, FILTER_VALIDATE_IP)) {
+                Log::error('Invalid Paytrail callback base URL', ['base_url' => $baseUrl]);
+                return response()->json([
+                    'message' => 'Invalid PAYTRAIL callback base URL. It must be an https hostname (no raw IPs).',
+                    'base_url' => $baseUrl,
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
             // Build SDK payment request
             $sdkClient = new PaytrailSdkClient((int) $creds['merchant_id'], (string) $creds['secret_key'], (string) config('app.name', 'Laravel'));
             $paymentReq = (new PaytrailPaymentRequest())
@@ -77,6 +89,18 @@ class PaymentController extends Controller
                         ->setSuccess($baseUrl . '/api/payments/callback?restaurant_id=' . urlencode($restaurantId) . '&branch_id=' . urlencode($branchId))
                         ->setCancel($baseUrl . '/api/payments/callback?restaurant_id=' . urlencode($restaurantId) . '&branch_id=' . urlencode($branchId))
                     );
+
+            // Log constructed URLs for debugging Paytrail rejections
+            try {
+                Log::info('Paytrail payment URLs', [
+                    'redirect_success' => $baseUrl . '/payment/success',
+                    'redirect_cancel' => $baseUrl . '/payment/cancel',
+                    'callback_success' => $baseUrl . '/api/payments/callback?restaurant_id=' . $restaurantId . '&branch_id=' . $branchId,
+                    'callback_cancel' => $baseUrl . '/api/payments/callback?restaurant_id=' . $restaurantId . '&branch_id=' . $branchId,
+                ]);
+            } catch (\Throwable $__logEx) {
+                // ignore logging errors
+            }
 
             $sdkResponse = $sdkClient->createPayment($paymentReq);
             $paymentUrl = $sdkResponse->getHref();
