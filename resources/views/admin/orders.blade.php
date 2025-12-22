@@ -357,14 +357,19 @@
 document.addEventListener('DOMContentLoaded', function() {
     const filterSelects = document.querySelectorAll('.filter-select');
     const branches = @json($branches ?? []);
+    let currentPage = {{ data_get($pagination, 'page', 1) }};
+    let currentPerPage = {{ data_get($pagination, 'perPage', 20) }};
     
     filterSelects.forEach(select => {
         select.addEventListener('change', function() {
-            loadOrders();
+            loadOrders(1);
         });
     });
+
+    // Load initial page of orders (so pagination controls render)
+    loadOrders(currentPage);
     
-    function loadOrders() {
+    function loadOrders(page = 1) {
         const restaurantId = document.getElementById('filterRestaurant')?.value || '';
         const branchId = document.getElementById('filterBranch')?.value || '';
         const status = document.getElementById('filterStatus')?.value || '';
@@ -375,18 +380,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (branchId) params.append('branchId', branchId);
         if (status) params.append('status', status);
         if (orderType) params.append('orderType', orderType);
+        params.append('page', page);
+        params.append('perPage', currentPerPage);
         
         fetch(`{{ route('orders.ajax') }}?${params.toString()}`)
             .then(response => response.json())
             .then(data => {
-                updateOrdersDisplay(data.orders, data.customers);
+                currentPage = data.pagination?.page || page;
+                updateOrdersDisplay(data.orders, data.customers, data.pagination);
             })
             .catch(error => {
                 console.error('Error loading orders:', error);
             });
     }
     
-    function updateOrdersDisplay(orders, customers) {
+    function updateOrdersDisplay(orders, customers, pagination) {
         // Build customer map
         const customerMap = {};
         customers.forEach(c => {
@@ -403,6 +411,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update modals
         updateModals(orders, customerMap);
+
+        // Render pagination controls
+        renderPagination(pagination || {page: currentPage, perPage: currentPerPage, total: 0, lastPage: 1});
     }
     
     function updateStats(orders) {
@@ -462,6 +473,63 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
+    }
+    
+    function renderPagination(pagination) {
+        const cardBody = document.querySelector('#ordersTableCard .card-body');
+        const navId = 'orders-pagination';
+        // remove old pagination if exists
+        const old = document.getElementById(navId);
+        if (old) old.remove();
+
+        if (!pagination || pagination.total <= pagination.perPage) return;
+
+        const nav = document.createElement('nav');
+        nav.id = navId;
+        nav.className = 'mt-3';
+
+        const ul = document.createElement('ul');
+        ul.className = 'pagination justify-content-end mb-0';
+
+        const makePageItem = (p, label = null, active = false, disabled = false) => {
+            const li = document.createElement('li');
+            li.className = 'page-item' + (active ? ' active' : '') + (disabled ? ' disabled' : '');
+            const a = document.createElement('a');
+            a.className = 'page-link';
+            a.href = '#';
+            a.textContent = label || p;
+            a.addEventListener('click', (e) => { e.preventDefault(); if (!disabled) { loadOrders(p); } });
+            li.appendChild(a);
+            return li;
+        };
+
+        // Prev
+        ul.appendChild(makePageItem(Math.max(1, pagination.page - 1), '«', false, pagination.page <= 1));
+
+        // show up to 7 pages around current
+        const start = Math.max(1, pagination.page - 3);
+        const end = Math.min(pagination.lastPage, pagination.page + 3);
+        if (start > 1) {
+            ul.appendChild(makePageItem(1, '1'));
+            if (start > 2) {
+                const gap = document.createElement('li'); gap.className = 'page-item disabled'; gap.innerHTML = '<span class="page-link">…</span>'; ul.appendChild(gap);
+            }
+        }
+        for (let p = start; p <= end; p++) {
+            ul.appendChild(makePageItem(p, null, p === pagination.page));
+        }
+        if (end < pagination.lastPage) {
+            if (end < pagination.lastPage - 1) {
+                const gap = document.createElement('li'); gap.className = 'page-item disabled'; gap.innerHTML = '<span class="page-link">…</span>'; ul.appendChild(gap);
+            }
+            ul.appendChild(makePageItem(pagination.lastPage, String(pagination.lastPage)));
+        }
+
+        // Next
+        ul.appendChild(makePageItem(Math.min(pagination.lastPage, pagination.page + 1), '»', false, pagination.page >= pagination.lastPage));
+
+        nav.appendChild(ul);
+        cardBody.appendChild(nav);
     }
     
     function updateTable(orders, customerMap) {
