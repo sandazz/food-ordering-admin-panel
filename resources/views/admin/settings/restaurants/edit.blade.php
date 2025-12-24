@@ -8,6 +8,16 @@
     <label class="form-label">Name</label>
     <input type="text" name="name" class="form-control" value="{{ $restaurant['name'] }}" required>
   </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Email</label>
+      <input type="email" name="email" class="form-control" value="{{ $restaurant['email'] ?? '' }}" placeholder="contact@example.com">
+    </div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Mobile</label>
+      <input type="tel" name="mobile" class="form-control" value="{{ $restaurant['mobile'] ?? '' }}" placeholder="+358...">
+    </div>
+  </div>
   <div class="mb-3">
     <label class="form-label">Description</label>
     <textarea name="description" class="form-control" rows="3">{{ $restaurant['description'] }}</textarea>

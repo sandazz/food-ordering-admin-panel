@@ -7,6 +7,16 @@
     <label class="form-label">Name</label>
     <input type="text" name="name" class="form-control" required>
   </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Email</label>
+      <input type="email" name="email" class="form-control" placeholder="contact@example.com">
+    </div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Mobile</label>
+      <input type="tel" name="mobile" class="form-control" placeholder="+358...">
+    </div>
+  </div>
   <script>
     (function(){
       const inp = document.getElementById('logoInput');
