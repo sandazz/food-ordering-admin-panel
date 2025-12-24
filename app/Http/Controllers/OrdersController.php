@@ -88,6 +88,14 @@ class OrdersController extends Controller
             return strtotime($b['createdAt']) - strtotime($a['createdAt']);
         });
 
+        // Simple pagination (server-side slice)
+        $perPage = (int)$request->query('perPage', 20);
+        $page = max(1, (int)$request->query('page', 1));
+        $total = count($allOrders);
+        $lastPage = (int) max(1, ceil($total / max(1, $perPage)));
+        $offset = ($page - 1) * $perPage;
+        $paginated = array_slice($allOrders, $offset, $perPage);
+
         // Fetch customers collection to resolve customer names in the view
         $customers = [];
         try {
@@ -108,13 +116,19 @@ class OrdersController extends Controller
         }
 
         return view('admin.orders', [
-            'orders' => $allOrders,
+            'orders' => $paginated,
             'restaurants' => $restaurants,
             'branches' => $branches,
             'customers' => $customers,
             'role' => $role,
             'currentRestaurantId' => $restaurantId,
             'currentBranchId' => $branchId,
+            'pagination' => [
+                'page' => $page,
+                'perPage' => $perPage,
+                'total' => $total,
+                'lastPage' => $lastPage,
+            ],
         ]);
     }
 
@@ -165,6 +179,14 @@ class OrdersController extends Controller
             return strtotime($b['createdAt']) - strtotime($a['createdAt']);
         });
 
+        // Pagination for AJAX
+        $perPage = (int)$request->input('perPage', 20);
+        $page = max(1, (int)$request->input('page', 1));
+        $total = count($allOrders);
+        $lastPage = (int) max(1, ceil($total / max(1, $perPage)));
+        $offset = ($page - 1) * $perPage;
+        $paginated = array_slice($allOrders, $offset, $perPage);
+
         // Fetch customers
         $customers = [];
         try {
@@ -184,8 +206,14 @@ class OrdersController extends Controller
         }
 
         return response()->json([
-            'orders' => $allOrders,
+            'orders' => $paginated,
             'customers' => $customers,
+            'pagination' => [
+                'page' => $page,
+                'perPage' => $perPage,
+                'total' => $total,
+                'lastPage' => $lastPage,
+            ],
         ]);
     }
 

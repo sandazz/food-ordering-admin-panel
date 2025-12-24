@@ -8,6 +8,16 @@
     <label class="form-label">Name</label>
     <input type="text" name="name" class="form-control" value="{{ $restaurant['name'] }}" required>
   </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Email</label>
+      <input type="email" name="email" class="form-control" value="{{ $restaurant['email'] ?? '' }}" placeholder="contact@example.com">
+    </div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Mobile</label>
+      <input type="tel" name="mobile" class="form-control" value="{{ $restaurant['mobile'] ?? '' }}" placeholder="+358...">
+    </div>
+  </div>
   <div class="mb-3">
     <label class="form-label">Description</label>
     <textarea name="description" class="form-control" rows="3">{{ $restaurant['description'] }}</textarea>
@@ -25,14 +35,7 @@
         <img id="logoPreview" src="{{ $restaurant['logoUrl'] ?? '' }}" alt="Logo" style="max-height:80px;{{ empty($restaurant['logoUrl']) ? 'display:none;' : '' }}"/>
       </div>
     </div>
-    <div class="col-md-3 mb-3">
-      <label class="form-label">Tax Rate</label>
-      <input type="number" step="0.01" name="taxRate" class="form-control" value="{{ $restaurant['taxRate'] }}">
-    </div>
-    <div class="col-md-3 mb-3">
-      <label class="form-label">Service Charge</label>
-      <input type="number" step="0.01" name="serviceCharge" class="form-control" value="{{ $restaurant['serviceCharge'] }}">
-    </div>
+    
   </div>
   <script>
     (function(){
@@ -57,7 +60,11 @@
       <option value="inactive" {{ $restaurant['status']==='inactive'?'selected':'' }}>Inactive</option>
     </select>
   </div>
-  <a href="{{ route('settings.restaurants') }}" class="btn btn-outline-secondary">Cancel</a>
+  @if(session('role') === 'admin')
+    <a href="{{ route('settings.restaurants') }}" class="btn btn-outline-secondary">Cancel</a>
+  @else
+    <a href="{{ route('settings.context') }}" class="btn btn-outline-secondary">Cancel</a>
+  @endif
   <button class="btn btn-primary">Update</button>
 </form>
 @endsection

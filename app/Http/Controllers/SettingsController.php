@@ -207,6 +207,8 @@ class SettingsController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:150',
             'description' => 'nullable|string|max:1000',
+            'email' => 'nullable|email|max:255',
+            'mobile' => 'nullable|string|max:40',
             'logoUrl' => 'nullable|url',
             'logo' => 'nullable|image|max:4096',
             'taxRate' => 'nullable|numeric|min:0',
@@ -221,6 +223,8 @@ class SettingsController extends Controller
         $firebase->createDocument('restaurants', [
             'name' => $data['name'],
             'description' => $data['description'] ?? '',
+            'email' => $data['email'] ?? '',
+            'mobile' => $data['mobile'] ?? '',
             'logoUrl' => $logoUrl,
             'taxRate' => (float)($data['taxRate'] ?? 0),
             'serviceCharge' => (float)($data['serviceCharge'] ?? 0),
@@ -238,6 +242,8 @@ class SettingsController extends Controller
             'name' => $f['name']['stringValue'] ?? '',
             'description' => $f['description']['stringValue'] ?? '',
             'logoUrl' => $f['logoUrl']['stringValue'] ?? '',
+            'email' => $f['email']['stringValue'] ?? '',
+            'mobile' => $f['mobile']['stringValue'] ?? '',
             'taxRate' => isset($f['taxRate']['doubleValue']) ? (float)$f['taxRate']['doubleValue'] : (float)($f['taxRate']['integerValue'] ?? 0),
             'serviceCharge' => isset($f['serviceCharge']['doubleValue']) ? (float)$f['serviceCharge']['doubleValue'] : (float)($f['serviceCharge']['integerValue'] ?? 0),
             'status' => $f['status']['stringValue'] ?? 'active',
@@ -250,6 +256,8 @@ class SettingsController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:150',
             'description' => 'nullable|string|max:1000',
+            'email' => 'nullable|email|max:255',
+            'mobile' => 'nullable|string|max:40',
             'logoUrl' => 'nullable|url',
             'logo' => 'nullable|image|max:4096',
             'taxRate' => 'nullable|numeric|min:0',
@@ -263,6 +271,8 @@ class SettingsController extends Controller
         $payload = [
             'name' => $data['name'],
             'description' => $data['description'] ?? '',
+            'email' => $data['email'] ?? '',
+            'mobile' => $data['mobile'] ?? '',
             'logoUrl' => $logoUrl,
             'taxRate' => (float)($data['taxRate'] ?? 0), 
             'serviceCharge' => (float)($data['serviceCharge'] ?? 0),
@@ -330,6 +340,7 @@ class SettingsController extends Controller
             'country' => 'nullable|string|max:120',
             'taxRate' => 'nullable|numeric|min:0',
             'serviceCharge' => 'nullable|numeric|min:0',
+            'deliveryCharge' => 'nullable|numeric|min:0',
             'image' => 'nullable|image|max:4096',
             // Optional payment gateway credentials for branch
             // If either merchant_id or secret_key is present, require the other
@@ -353,6 +364,7 @@ class SettingsController extends Controller
             'imageUrl' => $imageUrl,
             'taxRate' => (float)($data['taxRate'] ?? 0),
             'serviceCharge' => (float)($data['serviceCharge'] ?? 0),
+            'deliveryCharge' => (float)($data['deliveryCharge'] ?? 0),
             'address' => [
                 'street' => $data['street'] ?? '',
                 'city' => $data['city'] ?? '',
@@ -393,6 +405,7 @@ class SettingsController extends Controller
             'businessId' => $f['businessId']['stringValue'] ?? '',
             'taxRate' => isset($f['taxRate']['doubleValue']) ? (float)$f['taxRate']['doubleValue'] : (float)($f['taxRate']['integerValue'] ?? 0),
             'serviceCharge' => isset($f['serviceCharge']['doubleValue']) ? (float)$f['serviceCharge']['doubleValue'] : (float)($f['serviceCharge']['integerValue'] ?? 0),
+            'deliveryCharge' => isset($f['deliveryCharge']['doubleValue']) ? (float)$f['deliveryCharge']['doubleValue'] : (float)($f['deliveryCharge']['integerValue'] ?? 0),
             'address' => [
                 'street' => $f['address']['mapValue']['fields']['street']['stringValue'] ?? '',
                 'city' => $f['address']['mapValue']['fields']['city']['stringValue'] ?? '',
@@ -431,6 +444,7 @@ class SettingsController extends Controller
             'country' => 'nullable|string|max:120',
             'taxRate' => 'nullable|numeric|min:0',
             'serviceCharge' => 'nullable|numeric|min:0',
+            'deliveryCharge' => 'nullable|numeric|min:0',
             'image' => 'nullable|image|max:4096',
             // Optional payment gateway credentials for branch
             'merchant_id' => 'nullable|string|max:255',
@@ -450,6 +464,7 @@ class SettingsController extends Controller
             ...(isset($imageUrl) && $imageUrl !== null ? ['imageUrl' => $imageUrl] : []),
             'taxRate' => (float)($data['taxRate'] ?? 0),
             'serviceCharge' => (float)($data['serviceCharge'] ?? 0),
+            'deliveryCharge' => (float)($data['deliveryCharge'] ?? 0),
             'address' => [
                 'street' => $data['street'] ?? '',
                 'city' => $data['city'] ?? '',
@@ -551,6 +566,7 @@ class SettingsController extends Controller
                 'name' => $f['name']['stringValue'] ?? '',
                 'status' => $f['status']['stringValue'] ?? 'open',
                 'businessId' => $f['businessId']['stringValue'] ?? '',
+                'deliveryCharge' => isset($f['deliveryCharge']['doubleValue']) ? (float)$f['deliveryCharge']['doubleValue'] : (float)($f['deliveryCharge']['integerValue'] ?? 0),
             ];
         }
         return $branches;
