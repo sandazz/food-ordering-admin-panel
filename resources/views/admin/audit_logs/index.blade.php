@@ -69,7 +69,7 @@
                         <th>Branch</th>
                         <th>Route</th>
                         <th>IP</th>
-                        <th>Changes</th>
+                        <th class="audit-changes" style="min-width:260px;">Changes</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -89,32 +89,46 @@
                             <td style="white-space:nowrap; overflow-x:auto;">{{ $log['branchName'] ?? $log['branchId'] }}</td>
                             <td>{{ $log['route'] }}</td>
                             <td>{{ $log['ip'] }}</td>
-                            <td>
+                            <td class="audit-changes" style="white-space:normal; word-break:break-word;">
                                 @if(!empty($log['changes']))
                                     <div class="mb-0 ps-0">
+                                        @if(!empty($log['changeContext']))
+                                            <div class="text-muted" style="margin-bottom:4px;">'{{ $log['changeContext'] }}'</div>
+                                        @endif
+                                        @if(!empty($log['changeContextNumber']))
+                                            <div class="text-muted" style="margin-bottom:4px;">{{ $log['changeContextNumberLabel'] ?? 'number' }} : {{ $log['changeContextNumber'] }}</div>
+                                        @endif
                                         @foreach($log['changes'] as $ch)
-                                            @php(
-                                                $fromVal = is_array($ch['from']) ? json_encode($ch['from']) : $ch['from']
-                                            )
-                                            @php(
-                                                $toVal = is_array($ch['to']) ? json_encode($ch['to']) : $ch['to']
-                                            )
-                                            <div class="change-row" style="white-space:nowrap; margin-bottom:6px;">
-                                                <strong>{{ $ch['field'] }}</strong>:
-                                                @if(is_null($ch['from']) && !is_null($ch['to']))
-                                                    set to <span>{{ $toVal }}</span>
-                                                @elseif(!is_null($ch['from']) && is_null($ch['to']))
-                                                    cleared <span class="text-muted">(was {{ $fromVal }})</span>
+                                            <div class="change-row" style="margin-bottom:6px;">
+                                                @if(!empty($ch['summary']))
+                                                    {{-- Use pre-computed summary for complex changes --}}
+                                                    <div class="text-dark">{{ $ch['summary'] }}</div>
                                                 @else
-                                                    <span class="text-muted">{{ is_null($ch['from']) ? '' : $fromVal }}</span>
-                                                    @if(!(is_null($ch['from']) && is_null($ch['to'])))
-                                                        →
-                                                    @endif
-                                                    <span>{{ is_null($ch['to']) ? '' : $toVal }}</span>
+                                                    {{-- Fallback to formatted values if no summary --}}
+                                                    @php(
+                                                        $fromVal = !empty($ch['formatted_from']) ? $ch['formatted_from'] : (is_array($ch['from']) ? json_encode($ch['from']) : $ch['from'])
+                                                    )
+                                                    @php(
+                                                        $toVal = !empty($ch['formatted_to']) ? $ch['formatted_to'] : (is_array($ch['to']) ? json_encode($ch['to']) : $ch['to'])
+                                                    )
+                                                    <div class="text-dark">
+                                                        <strong>{{ $ch['label'] ?? ucfirst(str_replace('_', ' ', $ch['field'])) }}</strong>:
+                                                        @if(is_null($ch['from']) && !is_null($ch['to']))
+                                                            Set to <span class="text-success">{{ $toVal }}</span>
+                                                        @elseif(!is_null($ch['from']) && is_null($ch['to']))
+                                                            Cleared <span class="text-muted small">(was {{ $fromVal }})</span>
+                                                        @else
+                                                            <span class="text-muted">{{ is_null($ch['from']) ? '—' : $fromVal }}</span>
+                                                            →
+                                                            <span class="text-primary">{{ is_null($ch['to']) ? '—' : $toVal }}</span>
+                                                        @endif
+                                                    </div>
                                                 @endif
                                             </div>
                                         @endforeach
                                     </div>
+                                @else
+                                    <span class="text-muted small">—</span>
                                 @endif
                             </td>
                         </tr>
