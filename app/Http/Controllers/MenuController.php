@@ -529,6 +529,13 @@ class MenuController extends Controller
         if ($offerPriceAvailableFlag && isset($data['offerPrice']) && $data['offerPrice'] !== null && $data['offerPrice'] !== '') {
             $payload['offerPrice'] = (float)$data['offerPrice'];
         }
+        // Attach audit info (after) to ensure item id and name are present
+        $request->attributes->set('audit_before', []);
+        $request->attributes->set('audit_after', [
+            'itemId' => $itemId,
+            'itemName' => $payload['name'] ?? ($payload['name_en'] ?? ''),
+        ]);
+
         // Create item document
         $firebase->createDocument($basePath, $payload, $itemId);
         // Create subcollections for sizes and bases
@@ -796,6 +803,12 @@ class MenuController extends Controller
         $before = [];
         $after = [];
         foreach ($payload as $k=>$v) { if (array_key_exists($k,$f)) { $before[$k]=$decode($f[$k]); } $after[$k]=$v; }
+        // Ensure audit includes item id and a friendly item name
+        $existingName = $f['name_en']['stringValue'] ?? ($f['name']['stringValue'] ?? '');
+        $before['itemId'] = $itemId;
+        $before['itemName'] = $existingName;
+        $after['itemId'] = $itemId;
+        $after['itemName'] = $payload['name'] ?? ($payload['name_en'] ?? $existingName);
         $request->attributes->set('audit_before', $before);
         $request->attributes->set('audit_after', $after);
         $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId, $payload);
@@ -898,8 +911,9 @@ class MenuController extends Controller
         $f = $doc['fields'] ?? [];
         // If field doesn't exist, treat as unavailable (false) and add it
         $availability = (bool) ($f['availability']['booleanValue'] ?? false);
-        $before = ['availability' => $availability];
-        $after = ['availability' => !$availability];
+        $itemName = $f['name_en']['stringValue'] ?? ($f['name']['stringValue'] ?? $itemId);
+        $before = ['availability' => $availability, 'itemId' => $itemId, 'itemName' => $itemName];
+        $after = ['availability' => !$availability, 'itemId' => $itemId, 'itemName' => $itemName];
         $request->attributes->set('audit_before', $before);
         $request->attributes->set('audit_after', $after);
         $firebase->updateDocument("restaurants/{$restaurantId}/branches/{$branchId}/menus/{$categoryId}/items", $itemId, [

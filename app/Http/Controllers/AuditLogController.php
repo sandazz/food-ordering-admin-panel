@@ -96,6 +96,11 @@ class AuditLogController extends Controller
 
             // Field-level changes if before/after available
             $log['changes'] = $this->buildChanges($log['before'] ?? [], $log['after'] ?? [], $log['params'] ?? [], $log['method']);
+            // Context lines for display (e.g., item name and number)
+            [$ctxName, $ctxNumber, $ctxNumberKey] = $this->deriveContextPair($log['before'] ?? [], $log['after'] ?? []);
+            $log['changeContext'] = $ctxName;
+            $log['changeContextNumber'] = $ctxNumber;
+            $log['changeContextNumberLabel'] = $ctxNumberKey;
         }
         unset($log);
 
@@ -250,9 +255,93 @@ class AuditLogController extends Controller
     }
 
     /**
+     * Format a value for display based on field name and type.
+     * @param mixed $value The value to format
+     * @param string $field The field name (used to infer formatting rules)
+     * @param bool $isOldValue Whether this is the old value (affects null formatting)
+     * @return string Formatted value
+     */
+    private function formatChangeValue($value, string $field, bool $isOldValue = false): string
+    {
+        // Handle null
+        if (is_null($value)) {
+            return $isOldValue ? 'Not set' : '';
+        }
+
+        // Price fields
+        $priceFields = ['price', 'offerPrice', 'offer_price', 'bases_price', 'sizes_price', 'total', 'amount', 'subtotal', 'discount'];
+        foreach ($priceFields as $pf) {
+            if (stripos($field, $pf) !== false) {
+                return '€' . number_format((float)$value, 2);
+            }
+        }
+
+        // Boolean fields
+        $boolFields = ['enabled', 'active', 'available', 'status', 'visibility', 'is_active', 'is_enabled', 'published'];
+        foreach ($boolFields as $bf) {
+            if (stripos($field, $bf) !== false || is_bool($value)) {
+                if (is_bool($value)) {
+                    return $value ? 'Yes' : 'No';
+                }
+                $val = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                if (!is_null($val)) {
+                    return $val ? 'Yes' : 'No';
+                }
+            }
+        }
+
+        // Date/timestamp fields
+        if (stripos($field, 'date') !== false || stripos($field, 'time') !== false || stripos($field, 'At') !== false) {
+            try {
+                $dt = Carbon::parse($value);
+                return $dt->format('Y-m-d H:i');
+            } catch (\Throwable $e) {
+                // Not a valid date, continue
+            }
+        }
+
+        // Array/object
+        if (is_array($value)) {
+            $count = count($value);
+            if ($count === 0) {
+                return 'Empty';
+            }
+            // Check if it's a simple list or map
+            if (array_keys($value) === range(0, $count - 1)) {
+                // Indexed array
+                return $count . ' items';
+            } else {
+                // Associative array - try to provide meaningful summary
+                return $count . ' entries';
+            }
+        }
+
+        // Numeric fields (quantity, count, etc.)
+        if (is_numeric($value) && (stripos($field, 'quantity') !== false || stripos($field, 'count') !== false)) {
+            return number_format((float)$value, 0);
+        }
+
+        // Default: convert to string
+        return (string)$value;
+    }
+
+    /**
+     * Determine a display label for a field. Maps boolean-like fields to 'Availability'.
+     */
+    private function displayLabelForField(string $field, $oldVal = null, $newVal = null): string
+    {
+        $normalized = strtolower($field);
+        $availabilityFields = ['enabled', 'active', 'available', 'is_active', 'is_enabled'];
+        if (in_array($normalized, $availabilityFields, true)) {
+            return 'Availability';
+        }
+        return ucfirst(str_replace('_', ' ', $field));
+    }
+
+    /**
      * Compute a list of field-level changes from before/after maps. If before/after are not provided,
      * provide a best-effort summary based on params and HTTP method.
-     * @return array<int, array{field:string, from:mixed, to:mixed}>
+     * @return array<int, array{field:string, label:string, from:mixed, to:mixed, formatted_from:string, formatted_to:string, summary:string}>
      */
     private function buildChanges(array $before, array $after, array $params, ?string $method): array
     {
@@ -263,7 +352,29 @@ class AuditLogController extends Controller
                 $old = $before[$k] ?? null;
                 $new = $after[$k] ?? null;
                 if ($old !== $new) {
-                    $changes[] = ['field' => (string)$k, 'from' => $old, 'to' => $new];
+                    $change = [
+                        'field' => (string)$k,
+                        'label' => $this->displayLabelForField((string)$k, $old, $new),
+                        'from' => $old,
+                        'to' => $new,
+                        'formatted_from' => '',
+                        'formatted_to' => '',
+                        'summary' => ''
+                    ];
+
+                    // Handle nested structures (bases, sizes, etc.)
+                    if (in_array($k, ['bases', 'sizes', 'toppings', 'extras'])) {
+                        $change['summary'] = $this->summarizeNestedChange($k, $old, $new);
+                    } elseif (in_array($k, ['bases_price', 'sizes_price', 'toppings_price', 'extras_price'])) {
+                        $change['summary'] = $this->summarizePriceMapChange($k, $old, $new);
+                    } else {
+                        // Regular field change with formatting
+                        $change['formatted_from'] = $this->formatChangeValue($old, $k, true);
+                        $change['formatted_to'] = $this->formatChangeValue($new, $k, false);
+                        $change['summary'] = $this->buildChangeSummary($k, $old, $new, $change['formatted_from'], $change['formatted_to']);
+                    }
+
+                    $changes[] = $change;
                 }
             }
             return $changes;
@@ -271,5 +382,194 @@ class AuditLogController extends Controller
 
         // No before/after snapshots: do not infer; return empty to hide non-confirmed changes
         return [];
+    }
+
+    /**
+     * Summarize a change to a nested structure (e.g. bases, sizes)
+     */
+    private function summarizeNestedChange(string $field, $old, $new): string
+    {
+        $oldArray = is_array($old) ? $old : [];
+        $newArray = is_array($new) ? $new : [];
+
+        if (empty($oldArray) && !empty($newArray)) {
+            $count = count($newArray);
+            return ucfirst($field) . ': ' . $count . ' ' . ($count === 1 ? 'item' : 'items') . ' added';
+        }
+
+        if (!empty($oldArray) && empty($newArray)) {
+            return ucfirst($field) . ': All items removed';
+        }
+
+        // Compare keys to find additions/removals/changes
+        $oldKeys = array_keys($oldArray);
+        $newKeys = array_keys($newArray);
+        $added = array_diff($newKeys, $oldKeys);
+        $removed = array_diff($oldKeys, $newKeys);
+        $common = array_intersect($oldKeys, $newKeys);
+
+        $parts = [];
+        if (!empty($added)) { $parts[] = count($added) . ' added'; }
+        if (!empty($removed)) { $parts[] = count($removed) . ' removed'; }
+
+        // Check for value changes in common keys
+        $changed = 0;
+        foreach ($common as $key) {
+            if ($oldArray[$key] !== $newArray[$key]) {
+                $changed++;
+            }
+        }
+        if ($changed > 0) { $parts[] = $changed . ' modified'; }
+
+        if (empty($parts)) {
+            return ucfirst($field) . ': No changes';
+        }
+
+        return ucfirst($field) . ': ' . implode(', ', $parts);
+    }
+
+    /**
+     * Summarize a change to a price map (e.g. bases_price, sizes_price)
+     */
+    private function summarizePriceMapChange(string $field, $old, $new): string
+    {
+        $oldArray = is_array($old) ? $old : [];
+        $newArray = is_array($new) ? $new : [];
+
+        if (empty($oldArray) && !empty($newArray)) {
+            return ucfirst(str_replace('_', ' ', $field)) . ': Prices set for ' . count($newArray) . ' items';
+        }
+
+        if (!empty($oldArray) && empty($newArray)) {
+            return ucfirst(str_replace('_', ' ', $field)) . ': All prices removed';
+        }
+
+        // Find items with changed prices
+        $changes = [];
+        $allKeys = array_unique(array_merge(array_keys($oldArray), array_keys($newArray)));
+        foreach ($allKeys as $key) {
+            $oldPrice = $oldArray[$key] ?? null;
+            $newPrice = $newArray[$key] ?? null;
+            if ($oldPrice !== $newPrice) {
+                $changes[] = $key;
+            }
+        }
+
+        if (empty($changes)) {
+            return ucfirst(str_replace('_', ' ', $field)) . ': No changes';
+        }
+
+        return ucfirst(str_replace('_', ' ', $field)) . ': ' . count($changes) . ' price' . (count($changes) === 1 ? '' : 's') . ' updated';
+    }
+
+    /**
+     * Build a human-readable summary for a single field change
+     */
+    private function buildChangeSummary(string $field, $oldVal, $newVal, string $formattedOld, string $formattedNew): string
+    {
+        $fieldLabel = $this->displayLabelForField($field, $oldVal, $newVal);
+
+        // New field (was null/empty, now has value)
+        if ((is_null($oldVal) || $oldVal === '') && !is_null($newVal) && $newVal !== '') {
+            return $fieldLabel . ': Set to ' . $formattedNew;
+        }
+
+        // Field cleared (had value, now null/empty)
+        if (!is_null($oldVal) && $oldVal !== '' && (is_null($newVal) || $newVal === '')) {
+            return $fieldLabel . ': Cleared (was ' . $formattedOld . ')';
+        }
+
+        // Value changed
+        return $fieldLabel . ': ' . $formattedOld . ' → ' . $formattedNew;
+    }
+
+    /**
+     * Derive a context value (e.g., item name or number) to show above changes.
+     * Only uses 'name' or 'number' when unchanged between before and after.
+     */
+    private function deriveChangeContext(array $before, array $after, array $params): ?string
+    {
+        $getIfUnchanged = function(string $key) use ($before, $after) {
+            $b = array_key_exists($key, $before) ? $before[$key] : null;
+            $a = array_key_exists($key, $after) ? $after[$key] : null;
+            if (!is_null($b) && $b === $a && !is_array($b)) {
+                $val = trim((string)$b);
+                return $val !== '' ? $val : null;
+            }
+            return null;
+        };
+
+        // Prefer exact matches first
+        if ($val = $getIfUnchanged('name')) { return $val; }
+        if ($val = $getIfUnchanged('number')) { return $val; }
+
+        // Then any key containing 'name' or 'number' (case-insensitive)
+        $allKeys = array_unique(array_merge(array_keys($before), array_keys($after)));
+        // Name-like keys first
+        foreach ($allKeys as $k) {
+            if (strcasecmp($k, 'name') === 0) { continue; }
+            if (stripos($k, 'name') !== false) {
+                if ($val = $getIfUnchanged($k)) { return $val; }
+            }
+        }
+        // Number-like keys next
+        foreach ($allKeys as $k) {
+            if (strcasecmp($k, 'number') === 0) { continue; }
+            if (stripos($k, 'number') !== false) {
+                if ($val = $getIfUnchanged($k)) { return $val; }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Derive both name and number contexts from unchanged before/after fields.
+     */
+    private function deriveContextPair(array $before, array $after): array
+    {
+        $getIfUnchanged = function(string $key) use ($before, $after) {
+            $b = array_key_exists($key, $before) ? $before[$key] : null;
+            $a = array_key_exists($key, $after) ? $after[$key] : null;
+            if (!is_null($b) && $b === $a && !is_array($b)) {
+                $val = trim((string)$b);
+                return $val !== '' ? $val : null;
+            }
+            return null;
+        };
+
+        $name = null;
+        $number = null;
+        $numberKey = null;
+
+        // Prefer exact matches first
+        $name = $getIfUnchanged('name') ?? $name;
+        if (is_null($number)) {
+            $val = $getIfUnchanged('number');
+            if (!is_null($val)) { $number = $val; $numberKey = 'number'; }
+        }
+
+        // Then any key containing 'name' or 'number' (case-insensitive)
+        $allKeys = array_unique(array_merge(array_keys($before), array_keys($after)));
+        if (is_null($name)) {
+            foreach ($allKeys as $k) {
+                if (strcasecmp($k, 'name') === 0) { continue; }
+                if (stripos($k, 'name') !== false) {
+                    $val = $getIfUnchanged($k);
+                    if (!is_null($val)) { $name = $val; break; }
+                }
+            }
+        }
+        if (is_null($number)) {
+            foreach ($allKeys as $k) {
+                if (strcasecmp($k, 'number') === 0) { continue; }
+                if (stripos($k, 'number') !== false) {
+                    $val = $getIfUnchanged($k);
+                    if (!is_null($val)) { $number = $val; $numberKey = $k; break; }
+                }
+            }
+        }
+
+        return [$name, $number, $numberKey];
     }
 }
