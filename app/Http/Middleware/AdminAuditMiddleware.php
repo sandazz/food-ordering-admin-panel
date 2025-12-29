@@ -45,7 +45,7 @@ class AdminAuditMiddleware
                     'status' => $response->getStatusCode(),
                     'ip' => $ip,
                     'params' => $input,
-                    'createdAt' => now()->toString(),
+                    'createdAt' => now()->toIso8601String(),
                 ];
 
                 // Attach optional before/after snapshots if controller provided them
