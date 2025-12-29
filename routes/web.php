@@ -19,6 +19,7 @@ use App\Http\Controllers\PromotionsController;
 use App\Http\Controllers\IngredientsController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\PaymentConfigController;
+use App\Http\Controllers\PaymentHistoryController;
 
 // Redirect root to selection if logged in without restaurant, otherwise admin or login
 Route::get('/', function() {
@@ -44,6 +45,11 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::
     Route::get('/', [AdminController::class, 'dashboard']);
     Route::get('/orders', [OrdersController::class, 'index'])->name('orders.index');
     Route::get('/orders/ajax', [OrdersController::class, 'getOrdersAjax'])->name('orders.ajax');
+    
+    // Payment History
+    Route::get('/payment-history', [PaymentHistoryController::class, 'index'])->name('payment.history.index');
+    Route::get('/payment-history/export-csv', [PaymentHistoryController::class, 'exportCsv'])->name('payment.history.export.csv');
+    
     // Menu Categories & Items
     Route::get('/menu', [MenuController::class, 'index'])->name('menu.index');
     // Menu Sizes

@@ -632,6 +632,14 @@
         </div>
         
         <div class="nav-section">
+            <div class="nav-section-title">Payments</div>
+            <a href="{{ url('/admin/payment-history') }}" class="{{ request()->is('admin/payment-history*') ? 'active' : '' }}">
+                <i class="bi bi-credit-card"></i>
+                Payment History
+            </a>
+        </div>
+        
+        <div class="nav-section">
             <div class="nav-section-title">Menu Management</div>
             <a href="{{ url('/admin/menu') }}" class="{{ request()->is('admin/menu') ? 'active' : '' }}">
                 <i class="bi bi-card-list"></i>
