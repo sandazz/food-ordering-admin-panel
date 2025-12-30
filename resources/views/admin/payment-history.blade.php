@@ -77,20 +77,6 @@
         </div>
     </div>
 
-    <!-- Revenue Chart -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Revenue Over Time</h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="revenueChart" height="80"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Filters -->
     <div class="card mb-4">
         <div class="card-header">
