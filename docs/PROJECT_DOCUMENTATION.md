@@ -35,6 +35,7 @@ This is a **Laravel-based admin panel** for managing a multi-restaurant food ord
 - Payment gateway integration (Paytrail)
 - Push notification system
 - Audit logging
+- Legal compliance pages (Privacy Policy, GDPR-compliant)
 
 ---
 
@@ -101,6 +102,8 @@ resources/
 │   │   ├── settings/
 │   │   └── ... (others)
 │   ├── auth/                 # Authentication views
+│   ├── legal/                # Legal & compliance pages
+│   │   └── privacy-policy.blade.php
 │   └── layouts/
 │       └── admin.blade.php   # Main layout
 
@@ -703,6 +706,11 @@ GET    /forgot-password     - Password reset form
 POST   /forgot-password     - Send reset email
 ```
 
+### Public Legal Pages
+```
+GET    /privacy-policy      - Privacy policy page (Google Play compliant, GDPR)
+```
+
 ### Admin Panel Routes (Session-protected)
 ```
 GET    /admin                           - Dashboard
@@ -1095,6 +1103,46 @@ Language toggled via session:
 session(['ui_lang' => 'fi']);
 ```
 
+### 6. Legal & Compliance Pages
+
+#### Privacy Policy
+
+`resources/views/legal/privacy-policy.blade.php`
+
+A comprehensive, production-ready privacy policy page that complies with:
+- **Google Play Store** requirements
+- **GDPR** (General Data Protection Regulation)
+- **Finnish and international** data protection laws
+
+**Key Features:**
+- Professional, responsive design with mobile optimization
+- Clear explanation of data collection and usage
+- Third-party service disclosures (Firebase, Paytrail)
+- User rights section (access, correction, deletion, portability)
+- Payment security clarification (no card data stored)
+- Optional location services explanation
+- Children's privacy protection
+- Contact information for privacy requests
+
+**Access:**
+```
+Public URL: /privacy-policy
+Route Name: privacy.policy
+No authentication required
+```
+
+**Usage in App:**
+- Link from mobile app settings
+- Required for Google Play Console submission
+- Include in app store listing
+- Reference in terms of service
+
+**Maintenance:**
+- Update "Effective Date" when making changes
+- Review annually or when adding new features
+- Update contact email addresses as needed
+- Notify users of material changes via app notification
+
 ---
 
 ## Development Guidelines
@@ -1299,6 +1347,11 @@ The codebase is well-structured with clear separation of concerns, making it mai
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: December 29, 2025  
+**Document Version**: 1.1  
+**Last Updated**: December 30, 2025  
 **Maintained By**: Development Team
+
+### Recent Changes (v1.1)
+- Added comprehensive Privacy Policy page (`/privacy-policy`)
+- Google Play Store and GDPR compliance documentation
+- Legal pages section in project structure

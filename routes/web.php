@@ -116,7 +116,11 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::
     Route::get('/reports/top-items', [ReportsController::class, 'topItems'])->name('reports.top_items');
     Route::get('/reports/busy-slots', [ReportsController::class, 'busySlots'])->name('reports.busy_slots');
     Route::get('/reports/export', [ReportsController::class, 'export'])->name('reports.export');
+    
+    // Notifications
     Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications', [NotificationsController::class, 'store'])->name('notifications.store');
+    Route::post('/notifications/test', [NotificationsController::class, 'test'])->name('notifications.test');
     Route::post('/notifications/send', [NotificationsController::class, 'send'])->name('notifications.send');
 
     // Promotions CRUD
