@@ -4,10 +4,20 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Services\FirebaseService;
-use App\Services\PaytrailClient;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 
+/**
+ * Payment History Controller
+ * 
+ * NOTE: Paytrail API does NOT provide an endpoint for listing/querying payments by date range.
+ * The only available methods are:
+ * - POST /payments (create payment)
+ * - GET /payments/{transactionId} (verify individual payment)
+ * 
+ * Therefore, this controller queries payment history from our Firestore 'payments' collection,
+ * which is populated during payment creation (initiate) and updated during callbacks (verify).
+ * This is the compliant and correct approach for maintaining payment history with Paytrail.
+ */
 class PaymentHistoryController extends Controller
 {
     public function index(Request $request, FirebaseService $firebase)
@@ -24,7 +34,7 @@ class PaymentHistoryController extends Controller
         $filters = $request->validate([
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
-            'status' => 'nullable|in:all,paid,failed,cancelled',
+            'status' => 'nullable|in:all,paid,failed,cancelled,pending',
             'branchId' => 'nullable|string',
         ]);
 
@@ -33,16 +43,6 @@ class PaymentHistoryController extends Controller
         $to = $filters['to'] ?? now()->format('Y-m-d');
         $statusFilter = $filters['status'] ?? 'all';
         $branchFilter = $filters['branchId'] ?? '';
-
-        // Determine which branches to fetch based on role
-        $branches = $this->getScopedBranches($firebase, $role, $restaurantId, $branchId);
-
-        // Apply branch filter if provided (for Super/Restaurant Admin)
-        if ($branchFilter && in_array($role, ['admin', 'restaurant_admin'])) {
-            $branches = array_filter($branches, function($branch) use ($branchFilter) {
-                return $branch['id'] === $branchFilter;
-            });
-        }
 
         // Get all restaurants for Super Admin
         $restaurants = [];
@@ -59,43 +59,32 @@ class PaymentHistoryController extends Controller
             }
         }
 
-        // Fetch payment history for each branch
-        $allTransactions = [];
-        $errors = [];
+        // Fetch all branches for dropdowns (scoped by role)
+        $branches = $this->getScopedBranches($firebase, $role, $restaurantId, $branchId);
+
+        // Fetch payments from Firestore with role-based filtering
+        $allTransactions = $this->fetchPaymentsFromFirestore(
+            $firebase,
+            $role,
+            $restaurantId,
+            $branchId,
+            $from,
+            $to,
+            $statusFilter,
+            $branchFilter
+        );
+
+        // Calculate stats
         $totalRevenue = 0;
         $successCount = 0;
         $failedCount = 0;
 
-        foreach ($branches as $branch) {
-            try {
-                $transactions = $this->fetchBranchPaymentHistory($branch, $from, $to);
-                
-                foreach ($transactions as $transaction) {
-                    // Apply status filter
-                    if ($statusFilter !== 'all' && $transaction['status'] !== $statusFilter) {
-                        continue;
-                    }
-
-                    // Add branch info
-                    $transaction['branch_name'] = $branch['name'];
-                    $transaction['branch_id'] = $branch['id'];
-                    $transaction['restaurant_name'] = $branch['restaurant_name'] ?? '';
-                    
-                    $allTransactions[] = $transaction;
-
-                    // Calculate stats
-                    if ($transaction['status'] === 'paid') {
-                        $totalRevenue += $transaction['amount'];
-                        $successCount++;
-                    } elseif (in_array($transaction['status'], ['failed', 'cancelled'])) {
-                        $failedCount++;
-                    }
-                }
-            } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-                // APP_KEY has changed - suggest re-configuring the branch
-                $errors[] = "Branch '{$branch['name']}': Payment credentials need to be re-configured. Please edit this branch and re-enter the payment gateway credentials.";
-            } catch (\Exception $e) {
-                $errors[] = "Branch '{$branch['name']}': " . $e->getMessage();
+        foreach ($allTransactions as $transaction) {
+            if ($transaction['status'] === 'paid') {
+                $totalRevenue += $transaction['amount'];
+                $successCount++;
+            } elseif (in_array($transaction['status'], ['failed', 'cancelled'])) {
+                $failedCount++;
             }
         }
 
@@ -139,7 +128,7 @@ class PaymentHistoryController extends Controller
             'restaurants' => $restaurants,
             'stats' => $stats,
             'revenueByDate' => $revenueByDate,
-            'errors' => $errors,
+            'errors' => [], // No API errors since we're querying Firestore
             'filters' => [
                 'from' => $from,
                 'to' => $to,
@@ -156,6 +145,108 @@ class PaymentHistoryController extends Controller
                 'lastPage' => $lastPage,
             ],
         ]);
+    }
+
+    /**
+     * Fetch payments from Firestore 'payments' collection with role-based scoping and filters
+     */
+    private function fetchPaymentsFromFirestore(
+        FirebaseService $firebase,
+        string $role,
+        string $restaurantId,
+        ?string $branchId,
+        string $from,
+        string $to,
+        string $statusFilter,
+        string $branchFilter
+    ): array {
+        // Fetch all payments from Firestore
+        $paymentsResp = $firebase->getCollection('payments');
+        $paymentsDocs = $paymentsResp['documents'] ?? [];
+
+        $transactions = [];
+        $branchCache = []; // Cache branch names to avoid repeated lookups
+
+        foreach ($paymentsDocs as $doc) {
+            $id = Str::afterLast($doc['name'], '/');
+            $f = $doc['fields'] ?? [];
+
+            // Parse payment document
+            $payment = $this->parsePayment($id, $f);
+
+            // Apply role-based scoping
+            if ($role === 'branch_admin') {
+                // Branch Admin: Only their assigned branch
+                if ($payment['restaurant_id'] !== $restaurantId || $payment['branch_id'] !== $branchId) {
+                    continue;
+                }
+            } elseif ($role === 'restaurant_admin') {
+                // Restaurant Admin: Only their restaurant
+                if ($payment['restaurant_id'] !== $restaurantId) {
+                    continue;
+                }
+            }
+            // Super Admin: sees all payments (no filter)
+
+            // Apply date filter
+            $createdAt = strtotime($payment['timestamp']);
+            $fromTs = strtotime($from . ' 00:00:00');
+            $toTs = strtotime($to . ' 23:59:59');
+            
+            if ($createdAt < $fromTs || $createdAt > $toTs) {
+                continue;
+            }
+
+            // Apply status filter
+            if ($statusFilter !== 'all' && $payment['status'] !== $statusFilter) {
+                continue;
+            }
+
+            // Apply branch filter (for Super/Restaurant Admin)
+            if ($branchFilter && $payment['branch_id'] !== $branchFilter) {
+                continue;
+            }
+
+            // Fetch branch name for display
+            if (!isset($branchCache[$payment['branch_id']])) {
+                try {
+                    $branchDoc = $firebase->getDocument(
+                        "restaurants/{$payment['restaurant_id']}/branches",
+                        $payment['branch_id']
+                    );
+                    $bf = $branchDoc['fields'] ?? [];
+                    $branchCache[$payment['branch_id']] = $bf['name']['stringValue'] ?? $payment['branch_id'];
+                } catch (\Exception $e) {
+                    $branchCache[$payment['branch_id']] = $payment['branch_id'];
+                }
+            }
+
+            $payment['branch_name'] = $branchCache[$payment['branch_id']];
+            $transactions[] = $payment;
+        }
+
+        return $transactions;
+    }
+
+    /**
+     * Parse payment document from Firestore
+     */
+    private function parsePayment(string $id, array $fields): array
+    {
+        return [
+            'transaction_id' => $fields['transaction_id']['stringValue'] ?? $id,
+            'order_reference' => $fields['order_id']['stringValue'] ?? null,
+            'restaurant_id' => $fields['restaurant_id']['stringValue'] ?? '',
+            'branch_id' => $fields['branch_id']['stringValue'] ?? '',
+            'amount' => isset($fields['amount']['doubleValue']) 
+                ? (float)$fields['amount']['doubleValue'] 
+                : (float)($fields['amount']['integerValue'] ?? 0),
+            'currency' => $fields['currency']['stringValue'] ?? 'EUR',
+            'status' => $fields['status']['stringValue'] ?? 'pending',
+            'customer_email' => $fields['customer_email']['stringValue'] ?? null,
+            'payment_method' => $fields['payment_method']['stringValue'] ?? 'Unknown',
+            'timestamp' => $fields['created_at']['timestampValue'] ?? ($fields['created_at']['stringValue'] ?? now()->toISOString()),
+        ];
     }
 
     /**
@@ -182,11 +273,12 @@ class PaymentHistoryController extends Controller
                     $bid = Str::afterLast($bd['name'], '/');
                     $bf = $bd['fields'] ?? [];
                     
-                    $branch = $this->parseBranch($bid, $bf);
-                    $branch['restaurant_id'] = $rid;
-                    $branch['restaurant_name'] = $restaurantName;
-                    
-                    $branches[] = $branch;
+                    $branches[] = [
+                        'id' => $bid,
+                        'name' => $bf['name']['stringValue'] ?? $bid,
+                        'restaurant_id' => $rid,
+                        'restaurant_name' => $restaurantName,
+                    ];
                 }
             }
         } elseif ($role === 'restaurant_admin') {
@@ -198,10 +290,11 @@ class PaymentHistoryController extends Controller
                 $bid = Str::afterLast($bd['name'], '/');
                 $bf = $bd['fields'] ?? [];
                 
-                $branch = $this->parseBranch($bid, $bf);
-                $branch['restaurant_id'] = $restaurantId;
-                
-                $branches[] = $branch;
+                $branches[] = [
+                    'id' => $bid,
+                    'name' => $bf['name']['stringValue'] ?? $bid,
+                    'restaurant_id' => $restaurantId,
+                ];
             }
         } elseif ($role === 'branch_admin') {
             // Branch Admin: Only their assigned branch
@@ -209,10 +302,11 @@ class PaymentHistoryController extends Controller
                 $branchDoc = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}");
                 $bf = $branchDoc['fields'] ?? [];
                 
-                $branch = $this->parseBranch($branchId, $bf);
-                $branch['restaurant_id'] = $restaurantId;
-                
-                $branches[] = $branch;
+                $branches[] = [
+                    'id' => $branchId,
+                    'name' => $bf['name']['stringValue'] ?? $branchId,
+                    'restaurant_id' => $restaurantId,
+                ];
             }
         }
 
@@ -220,162 +314,41 @@ class PaymentHistoryController extends Controller
     }
 
     /**
-     * Parse branch document from Firestore
-     */
-    private function parseBranch(string $id, array $fields): array
-    {
-        $paymentConfig = null;
-        if (isset($fields['paymentConfig']['mapValue']['fields'])) {
-            $pcFields = $fields['paymentConfig']['mapValue']['fields'];
-            $paymentConfig = [
-                'merchantId' => $pcFields['merchantId']['stringValue'] ?? null,
-                'secretKeyEnc' => $pcFields['secretKeyEnc']['stringValue'] ?? null,
-                'isActive' => $pcFields['isActive']['booleanValue'] ?? false,
-            ];
-        }
-
-        // Parse address map if exists (same structure as SettingsController)
-        $address = '';
-        if (isset($fields['address']['mapValue']['fields'])) {
-            $addrFields = $fields['address']['mapValue']['fields'];
-            $parts = array_filter([
-                $addrFields['street']['stringValue'] ?? '',
-                $addrFields['city']['stringValue'] ?? '',
-                $addrFields['state']['stringValue'] ?? '',
-                $addrFields['zipCode']['stringValue'] ?? '',
-                $addrFields['country']['stringValue'] ?? '',
-            ]);
-            $address = implode(', ', $parts);
-        }
-
-        return [
-            'id' => $id,
-            'name' => $fields['name']['stringValue'] ?? $id,
-            'address' => $address,
-            'paymentConfig' => $paymentConfig,
-        ];
-    }
-
-    /**
-     * Fetch payment history for a specific branch using Paytrail API
-     */
-    private function fetchBranchPaymentHistory(array $branch, string $from, string $to): array
-    {
-        $paymentConfig = $branch['paymentConfig'];
-        
-        // Check if payment config exists and is active
-        if (!$paymentConfig || !$paymentConfig['isActive']) {
-            return [];
-        }
-
-        if (!$paymentConfig['merchantId'] || !$paymentConfig['secretKeyEnc']) {
-            return [];
-        }
-
-        // Decrypt secret key
-        try {
-            $secretKey = Crypt::decryptString($paymentConfig['secretKeyEnc']);
-            
-            // Validate decrypted secret is not empty
-            if (empty($secretKey)) {
-                throw new \Exception("Decrypted secret key is empty");
-            }
-        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-            // Re-throw DecryptException so it can be caught separately in the main loop
-            throw $e;
-        } catch (\Exception $e) {
-            throw new \Exception("Failed to decrypt secret key: " . $e->getMessage());
-        }
-
-        // Initialize Paytrail client with branch credentials
-        $paytrailClient = new PaytrailClient($paymentConfig['merchantId'], $secretKey);
-
-        // Fetch payment report
-        try {
-            $report = $paytrailClient->getPaymentReport([
-                'from' => $from,
-                'to' => $to,
-            ]);
-
-            // Parse transactions from report
-            return $this->parsePaytrailReport($report);
-        } catch (\GuzzleHttp\Exception\ConnectException $e) {
-            throw new \Exception("Unable to connect to Paytrail API. Please check your internet connection or contact support.");
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
-            if ($e->getResponse()) {
-                $statusCode = $e->getResponse()->getStatusCode();
-                $body = (string) $e->getResponse()->getBody();
-                throw new \Exception("Paytrail API error (HTTP {$statusCode}): {$body}");
-            }
-            throw new \Exception("Paytrail API request failed: " . $e->getMessage());
-        } catch (\Exception $e) {
-            throw new \Exception("Paytrail API error: " . $e->getMessage());
-        }
-    }
-
-    /**
-     * Parse Paytrail report response into standardized transaction format
-     */
-    private function parsePaytrailReport(array $report): array
-    {
-        $transactions = [];
-
-        // Handle different possible response formats
-        $payments = $report['payments'] ?? $report['transactions'] ?? $report;
-
-        if (!is_array($payments)) {
-            return [];
-        }
-
-        foreach ($payments as $payment) {
-            // Map Paytrail response to our format
-            $transactions[] = [
-                'transaction_id' => $payment['transaction_id'] ?? $payment['payment_id'] ?? $payment['id'] ?? 'N/A',
-                'order_reference' => $payment['reference'] ?? $payment['order_reference'] ?? $payment['stamp'] ?? null,
-                'amount' => ($payment['amount'] ?? 0) / 100, // Convert cents to EUR
-                'currency' => $payment['currency'] ?? 'EUR',
-                'status' => $this->normalizePaymentStatus($payment['status'] ?? 'unknown'),
-                'customer_email' => $payment['customer']['email'] ?? $payment['email'] ?? null,
-                'payment_method' => $payment['payment_method'] ?? $payment['provider'] ?? 'Unknown',
-                'timestamp' => $payment['timestamp'] ?? $payment['created_at'] ?? $payment['date'] ?? now()->toISOString(),
-            ];
-        }
-
-        return $transactions;
-    }
-
-    /**
-     * Normalize payment status from Paytrail to our standardized values
-     */
-    private function normalizePaymentStatus(string $status): string
-    {
-        $status = strtolower($status);
-        
-        $mapping = [
-            'ok' => 'paid',
-            'success' => 'paid',
-            'paid' => 'paid',
-            'completed' => 'paid',
-            'fail' => 'failed',
-            'failed' => 'failed',
-            'error' => 'failed',
-            'cancel' => 'cancelled',
-            'cancelled' => 'cancelled',
-            'canceled' => 'cancelled',
-            'pending' => 'pending',
-        ];
-
-        return $mapping[$status] ?? $status;
-    }
-
-    /**
      * Export payment history to CSV
      */
     public function exportCsv(Request $request, FirebaseService $firebase)
     {
-        // Reuse the same logic to fetch transactions
-        $data = $this->getTransactionsData($request, $firebase);
-        
+        $restaurantId = $request->session()->get('restaurantId');
+        $branchId = $request->session()->get('branchId');
+        $role = $request->session()->get('role');
+
+        if (!$restaurantId) {
+            return redirect()->route('settings.context')->with('status', 'Select restaurant first.');
+        }
+
+        // Get filters
+        $from = $request->input('from', now()->subDays(30)->format('Y-m-d'));
+        $to = $request->input('to', now()->format('Y-m-d'));
+        $statusFilter = $request->input('status', 'all');
+        $branchFilter = $request->input('branchId', '');
+
+        // Fetch payments
+        $transactions = $this->fetchPaymentsFromFirestore(
+            $firebase,
+            $role,
+            $restaurantId,
+            $branchId,
+            $from,
+            $to,
+            $statusFilter,
+            $branchFilter
+        );
+
+        // Sort by timestamp descending
+        usort($transactions, function($a, $b) {
+            return strtotime($b['timestamp']) - strtotime($a['timestamp']);
+        });
+
         $filename = 'payment-history-' . date('Y-m-d') . '.csv';
         
         header('Content-Type: text/csv');
@@ -384,15 +357,16 @@ class PaymentHistoryController extends Controller
         $output = fopen('php://output', 'w');
         
         // CSV headers
-        fputcsv($output, ['Transaction ID', 'Order Reference', 'Branch', 'Amount (EUR)', 'Status', 'Customer Email', 'Payment Method', 'Date']);
+        fputcsv($output, ['Transaction ID', 'Order Reference', 'Branch', 'Amount (EUR)', 'Currency', 'Status', 'Customer Email', 'Payment Method', 'Date']);
         
         // CSV rows
-        foreach ($data['transactions'] as $transaction) {
+        foreach ($transactions as $transaction) {
             fputcsv($output, [
                 $transaction['transaction_id'],
                 $transaction['order_reference'] ?? 'N/A',
-                $transaction['branch_name'],
+                $transaction['branch_name'] ?? 'N/A',
                 number_format($transaction['amount'], 2),
+                $transaction['currency'],
                 ucfirst($transaction['status']),
                 $transaction['customer_email'] ?? 'N/A',
                 $transaction['payment_method'],
@@ -402,15 +376,5 @@ class PaymentHistoryController extends Controller
         
         fclose($output);
         exit;
-    }
-
-    /**
-     * Helper method to get transactions data (used by both index and export)
-     */
-    private function getTransactionsData(Request $request, FirebaseService $firebase): array
-    {
-        // This is a simplified version - in production, you'd extract the logic from index()
-        // For now, returning empty array as placeholder
-        return ['transactions' => []];
     }
 }
