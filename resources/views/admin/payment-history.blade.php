@@ -156,7 +156,7 @@
                         <thead>
                             <tr>
                                 <th>Transaction ID</th>
-                                <th>Order Ref</th>
+                                <th>Order ID</th>
                                 @if(in_array($role, ['admin', 'restaurant_admin']))
                                 <th>Branch</th>
                                 @endif
@@ -173,7 +173,9 @@
                                 <td>
                                     <code class="text-primary">{{ $transaction['transaction_id'] }}</code>
                                 </td>
-                                <td>{{ $transaction['order_reference'] ?? 'N/A' }}</td>
+                                <td>
+                                    <strong>{{ $transaction['order_display_id'] ?? $transaction['order_reference'] ?? 'N/A' }}</strong>
+                                </td>
                                 @if(in_array($role, ['admin', 'restaurant_admin']))
                                 <td>
                                     <span class="badge bg-secondary">{{ $transaction['branch_name'] }}</span>

@@ -33,12 +33,14 @@ class PaymentController extends Controller
             'restaurant_id' => ['required', 'string'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'order_id' => ['required', 'string'],
+            'order_display_id' => ['nullable', 'string'],
             'customer_email' => ['required', 'email'],
         ]);
 
         $branchId = $validated['branch_id'];
         $restaurantId = $validated['restaurant_id'];
         $orderId = $validated['order_id'];
+        $orderDisplayId = $validated['order_display_id'] ?? $orderId;
         $amountCents = (int) round(((float) $validated['amount']) * 100);
 
         try {
@@ -118,6 +120,7 @@ class PaymentController extends Controller
             $this->firestore->createDocument('payments', [
                 'transaction_id' => $transactionId ?? null,
                 'order_id' => $orderId,
+                'order_display_id' => $orderDisplayId,
                 'restaurant_id' => $restaurantId,
                 'branch_id' => $branchId,
                 'amount' => (float) $validated['amount'],

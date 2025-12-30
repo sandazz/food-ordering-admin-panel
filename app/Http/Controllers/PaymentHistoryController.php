@@ -236,6 +236,7 @@ class PaymentHistoryController extends Controller
         return [
             'transaction_id' => $fields['transaction_id']['stringValue'] ?? $id,
             'order_reference' => $fields['order_id']['stringValue'] ?? null,
+            'order_display_id' => $fields['order_display_id']['stringValue'] ?? ($fields['order_id']['stringValue'] ?? null),
             'restaurant_id' => $fields['restaurant_id']['stringValue'] ?? '',
             'branch_id' => $fields['branch_id']['stringValue'] ?? '',
             'amount' => isset($fields['amount']['doubleValue']) 
@@ -357,13 +358,14 @@ class PaymentHistoryController extends Controller
         $output = fopen('php://output', 'w');
         
         // CSV headers
-        fputcsv($output, ['Transaction ID', 'Order Reference', 'Branch', 'Amount (EUR)', 'Currency', 'Status', 'Customer Email', 'Payment Method', 'Date']);
+        fputcsv($output, ['Transaction ID', 'Order ID', 'Order Display ID', 'Branch', 'Amount (EUR)', 'Currency', 'Status', 'Customer Email', 'Payment Method', 'Date']);
         
         // CSV rows
         foreach ($transactions as $transaction) {
             fputcsv($output, [
                 $transaction['transaction_id'],
                 $transaction['order_reference'] ?? 'N/A',
+                $transaction['order_display_id'] ?? 'N/A',
                 $transaction['branch_name'] ?? 'N/A',
                 number_format($transaction['amount'], 2),
                 $transaction['currency'],
