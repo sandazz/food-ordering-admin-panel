@@ -31,6 +31,11 @@ Route::get('/', function() {
 
 Route::get('/firebase-test', [FirebaseController::class, 'test']);
 
+// Public legal pages
+Route::get('/privacy-policy', function () {
+    return view('legal.privacy-policy');
+})->name('privacy.policy');
+
 // Auth (Firebase email/password)
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
