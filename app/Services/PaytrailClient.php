@@ -34,14 +34,17 @@ class PaytrailClient
         ];
     }
 
-    public function getPaymentReport(array $params = []): array
+    /**
+     * Get payment details from Paytrail by transaction ID
+     * This is the ONLY method Paytrail provides for querying individual payments
+     * 
+     * @param string $transactionId The Paytrail transaction ID
+     * @return array Payment details including status, amount, provider
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public function getPayment(string $transactionId): array
     {
-        $query = [];
-        if (!empty($params['from'])) $query['from'] = $params['from'];
-        if (!empty($params['to'])) $query['to'] = $params['to'];
-
-        $resp = $this->client->get('/payments/report', [
-            'query' => $query,
+        $resp = $this->client->get("/payments/{$transactionId}", [
             'headers' => [
                 'Authorization' => 'Basic ' . base64_encode($this->merchantId . ':' . $this->secret),
                 'Accept' => 'application/json',
@@ -49,9 +52,19 @@ class PaytrailClient
         ]);
 
         $body = json_decode($resp->getBody()->getContents(), true);
-        if (is_array($body)) {
-            return $body;
-        }
-        return [];
+        return $body ?? [];
+    }
+
+    /**
+     * @deprecated Paytrail does NOT support payment listing/reporting via API
+     * This method is kept for backward compatibility but will always fail
+     * Use Firestore 'payments' collection instead for payment history
+     */
+    public function getPaymentReport(array $params = []): array
+    {
+        // NOTE: Paytrail API does NOT support listing payments by date range
+        // This method is deprecated and should not be used
+        // All payment history must be stored in Firestore during creation/callback
+        throw new \Exception('Paytrail does not support payment listing API. Query Firestore payments collection instead.');
     }
 }

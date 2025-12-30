@@ -104,21 +104,44 @@ class PaymentController extends Controller
 
             $sdkResponse = $sdkClient->createPayment($paymentReq);
             $paymentUrl = $sdkResponse->getHref();
+            $transactionId = $sdkResponse->getTransactionId();
+            
             if (!$paymentUrl) {
                 Log::error('Paytrail SDK createPayment returned no href', ['branch_id' => $branchId, 'order_id' => $orderId]);
                 return response()->json(['message' => 'Unable to create payment'], Response::HTTP_BAD_GATEWAY);
             }
 
+            $now = now()->toIso8601String();
+
+            // Store payment record in Firestore 'payments' collection
+            // This is the source of truth for payment history since Paytrail doesn't provide listing API
+            $this->firestore->createDocument('payments', [
+                'transaction_id' => $transactionId ?? null,
+                'order_id' => $orderId,
+                'restaurant_id' => $restaurantId,
+                'branch_id' => $branchId,
+                'amount' => (float) $validated['amount'],
+                'currency' => 'EUR',
+                'status' => 'pending',
+                'payment_method' => null, // Will be updated on callback
+                'customer_email' => $validated['customer_email'],
+                'created_at' => $now,
+                'updated_at' => $now,
+            ], $transactionId ?? Str::uuid()->toString());
+
+            // Also create/update order document with payment reference
             $this->firestore->createDocument('orders', [
                 'order_id' => $orderId,
                 'branch_id' => $branchId,
                 'restaurant_id' => $restaurantId,
                 'amount' => (float) $validated['amount'],
                 'status' => 'pending',
-                'created_at' => now()->toIso8601String(),
+                'payment_status' => 'pending',
+                'payment_transaction_id' => $transactionId,
+                'created_at' => $now,
             ], $orderId);
 
-            return response()->json(['payment_url' => $paymentUrl], Response::HTTP_OK);
+            return response()->json(['payment_url' => $paymentUrl, 'transaction_id' => $transactionId], Response::HTTP_OK);
         } catch (\Throwable $e) {
             Log::error('Payment initiation failed', [
                 'branch_id' => $branchId,
@@ -140,30 +163,103 @@ class PaymentController extends Controller
         try {
             $branchDoc = $this->firestore->getDocument("restaurants/{$restaurantId}/branches", $branchId);
             $branchData = $this->decodeFirestoreDocument($branchDoc);
-            if (!$branchData || empty($branchData['paytrail_config']['secret_key'])) {
+            if (!$branchData) {
                 Log::warning('Callback for unknown branch', ['branch_id' => $branchId]);
                 return response('Invalid branch', Response::HTTP_FORBIDDEN);
             }
 
-            $secret = (string) $branchData['paytrail_config']['secret_key'];
+            $creds = $this->resolvePaytrailConfig($branchData);
+            if (!$creds) {
+                Log::warning('Callback for branch without payment config', ['branch_id' => $branchId]);
+                return response('Invalid branch', Response::HTTP_FORBIDDEN);
+            }
 
+            $secret = (string) $creds['secret_key'];
+
+            // Verify signature
             $isValid = $this->verifySignature($request, $secret);
             if (!$isValid) {
                 Log::warning('Invalid Paytrail signature', ['branch_id' => $branchId]);
                 return response('Forbidden', Response::HTTP_FORBIDDEN);
             }
 
-            $orderId = (string) ($request->query('order_id') ?? $request->query('checkout-reference') ?? $request->query('reference'));
-            $transactionId = (string) ($request->query('transaction_id') ?? $request->query('checkout-transaction-id'));
-            $status = (string) ($request->query('status') ?? $request->query('checkout-status'));
+            // Extract payment data from callback params
+            $orderId = (string) ($request->query('checkout-reference') ?? $request->query('reference') ?? '');
+            $transactionId = (string) ($request->query('checkout-transaction-id') ?? $request->query('transaction_id') ?? '');
+            $status = (string) ($request->query('checkout-status') ?? $request->query('status') ?? '');
+            $provider = (string) ($request->query('checkout-provider') ?? $request->query('provider') ?? 'Unknown');
 
-            if ($orderId && Str::lower($status) === 'ok') {
-                $this->firestore->updateDocument('orders', $orderId, [
-                    'status' => 'paid',
-                    'paytrail_transaction_id' => $transactionId,
-                    'paid_at' => now()->toIso8601String(),
-                ]);
+            if (!$transactionId) {
+                Log::warning('Callback without transaction_id', ['branch_id' => $branchId]);
+                return response('Missing transaction_id', Response::HTTP_BAD_REQUEST);
             }
+
+            // Verify payment status with Paytrail API
+            try {
+                $client = new PaytrailClient((string) $creds['merchant_id'], (string) $creds['secret_key']);
+                $paymentDetails = $client->getPayment($transactionId);
+                
+                // Use API response as source of truth
+                $verifiedStatus = strtolower($paymentDetails['status'] ?? $status);
+                $amount = isset($paymentDetails['amount']) ? (float)($paymentDetails['amount'] / 100) : null;
+                $provider = $paymentDetails['provider'] ?? $provider;
+            } catch (\Exception $e) {
+                Log::warning('Failed to verify payment with Paytrail', [
+                    'transaction_id' => $transactionId,
+                    'error' => $e->getMessage()
+                ]);
+                // Fallback to callback params if API call fails
+                $verifiedStatus = strtolower($status);
+                $amount = null;
+            }
+
+            $now = now()->toIso8601String();
+            
+            // Map Paytrail status to our standardized values
+            $mappedStatus = match($verifiedStatus) {
+                'ok', 'success', 'paid' => 'paid',
+                'fail', 'failed', 'error' => 'failed',
+                'cancel', 'cancelled', 'canceled' => 'cancelled',
+                default => 'pending'
+            };
+
+            // Update payment record in Firestore
+            $paymentUpdateData = [
+                'status' => $mappedStatus,
+                'payment_method' => $provider,
+                'updated_at' => $now,
+            ];
+            
+            if ($amount !== null) {
+                $paymentUpdateData['amount'] = $amount;
+            }
+
+            $this->firestore->updateDocument('payments', $transactionId, $paymentUpdateData);
+
+            // Update order status
+            if ($orderId) {
+                $orderUpdateData = [
+                    'payment_status' => $mappedStatus,
+                    'payment_transaction_id' => $transactionId,
+                    'updated_at' => $now,
+                ];
+
+                if ($mappedStatus === 'paid') {
+                    $orderUpdateData['status'] = 'confirmed';
+                    $orderUpdateData['paid_at'] = $now;
+                } elseif (in_array($mappedStatus, ['failed', 'cancelled'])) {
+                    $orderUpdateData['status'] = $mappedStatus;
+                }
+
+                $this->firestore->updateDocument('orders', $orderId, $orderUpdateData);
+            }
+
+            Log::info('Payment callback processed', [
+                'transaction_id' => $transactionId,
+                'order_id' => $orderId,
+                'status' => $mappedStatus,
+                'branch_id' => $branchId,
+            ]);
 
             return response('OK', Response::HTTP_OK);
         } catch (\Throwable $e) {
