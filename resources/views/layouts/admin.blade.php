@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Food Admin - Modern Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
@@ -635,7 +636,7 @@
             <div class="nav-section-title">Payments</div>
             <a href="{{ url('/admin/payment-history') }}" class="{{ request()->is('admin/payment-history*') ? 'active' : '' }}">
                 <i class="bi bi-credit-card"></i>
-                Payment History
+                Payment Gateway History
             </a>
         </div>
         
@@ -682,7 +683,7 @@
                 Audit Logs
             </a>
             @if(session('role') !== 'branch_admin')
-            <a href="{{ url('/admin/notifications') }}" class="{{ request()->is('admin/notifications') ? 'active' : '' }}">
+            <a href="{{ route('notifications.index') }}" class="{{ request()->is('admin/notifications*') ? 'active' : '' }}">
                 <i class="bi bi-bell"></i>
                 {{ \App\Utils\UIStrings::t('nav.notifications') }}
             </a>   

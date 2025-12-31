@@ -138,6 +138,69 @@
                 </tbody>
             </table>
         </div>
+
+        @if(method_exists($logs, 'links'))
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mt-3 gap-2">
+                <div class="text-muted small">
+                    @php(
+                        $from = ($logs->currentPage() - 1) * $logs->perPage() + 1
+                    )
+                    @php(
+                        $to = min($logs->currentPage() * $logs->perPage(), $logs->total())
+                    )
+                    Showing {{ $logs->total() ? $from : 0 }}–{{ $to }} of {{ $logs->total() }}
+                </div>
+
+                <div class="d-flex align-items-center gap-3">
+                    <form method="GET" class="d-flex align-items-center gap-2">
+                        @foreach(request()->except(['page','per_page']) as $k => $v)
+                            <input type="hidden" name="{{ $k }}" value="{{ $v }}"/>
+                        @endforeach
+                        <label class="form-label mb-0 small text-muted">Rows per page</label>
+                        <select name="per_page" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+                            @foreach([10,25,50,100] as $pp)
+                                <option value="{{ $pp }}" {{ $logs->perPage() == $pp ? 'selected' : '' }}>{{ $pp }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+
+                    @php($current = $logs->currentPage())
+                    @php($last = $logs->lastPage())
+                    @php($start = max(1, $current - 2))
+                    @php($end = min($last, $current + 2))
+
+                    <nav aria-label="Audit log pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item {{ $logs->onFirstPage() ? 'disabled' : '' }}">
+                                <a class="page-link" href="{{ $logs->url(1) }}" aria-label="First">«</a>
+                            </li>
+                            <li class="page-item {{ $logs->onFirstPage() ? 'disabled' : '' }}">
+                                <a class="page-link" href="{{ $logs->previousPageUrl() ?? '#' }}" aria-label="Previous">‹</a>
+                            </li>
+
+                            @if($start > 1)
+                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                            @endif
+                            @for($p = $start; $p <= $end; $p++)
+                                <li class="page-item {{ $p == $current ? 'active' : '' }}">
+                                    <a class="page-link" href="{{ $logs->url($p) }}">{{ $p }}</a>
+                                </li>
+                            @endfor
+                            @if($end < $last)
+                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                            @endif
+
+                            <li class="page-item {{ $current >= $last ? 'disabled' : '' }}">
+                                <a class="page-link" href="{{ $logs->nextPageUrl() ?? '#' }}" aria-label="Next">›</a>
+                            </li>
+                            <li class="page-item {{ $current >= $last ? 'disabled' : '' }}">
+                                <a class="page-link" href="{{ $logs->url($last) }}" aria-label="Last">»</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        @endif
     </div>
 </div>
 @endsection

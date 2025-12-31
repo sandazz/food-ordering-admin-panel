@@ -344,4 +344,65 @@ class FirebaseService
     {
         return $this->messaging;
     }
+
+    /**
+     * Send push notification to multiple devices using FCM multicast
+     *
+     * @param array $tokens Array of FCM device tokens
+     * @param array $notification ['title' => 'Title', 'body' => 'Body']
+     * @param array $data Optional additional data payload
+     * @return array ['success' => int, 'failure' => int, 'invalidTokens' => array]
+     */
+    public function sendPushNotification(array $tokens, array $notification, array $data = []): array
+    {
+        if (empty($tokens)) {
+            return ['success' => 0, 'failure' => 0, 'invalidTokens' => []];
+        }
+
+        try {
+            $message = [
+                'notification' => [
+                    'title' => $notification['title'] ?? '',
+                    'body' => $notification['body'] ?? '',
+                ],
+            ];
+
+            if (!empty($data)) {
+                $message['data'] = $data;
+            }
+
+            // Use the messaging SDK to send multicast
+            $messaging = $this->messaging;
+            $sendReport = $messaging->sendMulticast($message, $tokens);
+
+            $successCount = $sendReport->successes()->count();
+            $failureCount = $sendReport->failures()->count();
+            $invalidTokens = [];
+
+            // Collect invalid tokens for cleanup
+            foreach ($sendReport->failures()->getItems() as $failure) {
+                $error = $failure->error();
+                $errorCode = $error->getMessagingErrorCode();
+                
+                // Track tokens that should be removed
+                if (in_array($errorCode, ['UNREGISTERED', 'INVALID_ARGUMENT'])) {
+                    $invalidTokens[] = $failure->target()->value();
+                }
+            }
+
+            return [
+                'success' => $successCount,
+                'failure' => $failureCount,
+                'invalidTokens' => $invalidTokens,
+            ];
+        } catch (\Exception $e) {
+            \Log::error('FCM sendPushNotification failed: ' . $e->getMessage());
+            return [
+                'success' => 0,
+                'failure' => count($tokens),
+                'invalidTokens' => [],
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
 }
