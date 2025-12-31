@@ -128,6 +128,11 @@ class NotificationsController extends Controller
                 }
             }
 
+            // Set initial audit intent (before sending)
+            $request->attributes->set('audit_before', [
+                'target_restaurant' => $targetRestaurant,
+            ]);
+
             if (empty($tokens)) {
                 return back()->with('warning', 'No customers with valid FCM tokens found for the selected target.');
             }
@@ -135,6 +140,7 @@ class NotificationsController extends Controller
             // Send notifications using FirebaseService
             $successCount = 0;
             $failureCount = 0;
+            $totalRecipients = count($tokens);
             $batches = array_chunk($tokens, 500); // FCM limit is 500 tokens per batch
 
             foreach ($batches as $batchTokens) {
@@ -163,6 +169,7 @@ class NotificationsController extends Controller
             $request->attributes->set('audit_after', [
                 'title' => $validated['title'],
                 'body' => $validated['body'],
+                'target_restaurant' => $targetRestaurant,
             ]);
 
             $message = "Notification sent successfully! Success: {$successCount}, Failures: {$failureCount}";
@@ -200,6 +207,15 @@ class NotificationsController extends Controller
             ];
 
             $result = $this->firebase->sendPushNotification([$token], $notification, $data);
+
+            // Attach audit information (avoid logging the raw token for security)
+            $request->attributes->set('audit_after', [
+                'title' => $notification['title'],
+                'body' => $notification['body'],
+                'type' => 'test_notification',
+                'success_count' => $result['success'] ?? 0,
+                'failure_count' => $result['failure'] ?? 0,
+            ]);
 
             if ($result['success'] > 0) {
                 return response()->json([

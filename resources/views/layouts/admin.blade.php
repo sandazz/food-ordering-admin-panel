@@ -636,7 +636,7 @@
             <div class="nav-section-title">Payments</div>
             <a href="{{ url('/admin/payment-history') }}" class="{{ request()->is('admin/payment-history*') ? 'active' : '' }}">
                 <i class="bi bi-credit-card"></i>
-                Payment History
+                Payment Gateway History
             </a>
         </div>
         

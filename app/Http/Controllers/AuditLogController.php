@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use App\Services\FirebaseService;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class AuditLogController extends Controller
 {
@@ -74,8 +75,8 @@ class AuditLogController extends Controller
             return strcmp($b['createdAt'], $a['createdAt']);
         });
 
-        // Limit to recent 500 entries for performance
-        $logs = array_slice($logs, 0, 500);
+        // Limit to recent 1000 entries for performance baseline
+        $logs = array_slice($logs, 0, 1000);
 
         // Enrich logs with human-friendly fields (names, formatted time, summaries, diffs)
         [$restaurantNames, $branchNames] = $this->buildNameCaches($firebase, $logs);
@@ -114,6 +115,24 @@ class AuditLogController extends Controller
         } elseif ($role === 'branch_admin') {
             if ($restaurantId) { $branches = $this->listBranches($firebase, $restaurantId); }
         }
+
+        // Pagination (array-based)
+        $perPage = (int) max(5, min(100, (int) $request->query('per_page', 25)));
+        $page = (int) max(1, (int) $request->query('page', 1));
+        $total = count($logs);
+        $offset = ($page - 1) * $perPage;
+        $itemsForCurrentPage = array_slice($logs, $offset, $perPage);
+
+        $logs = new LengthAwarePaginator(
+            $itemsForCurrentPage,
+            $total,
+            $perPage,
+            $page,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
 
         return view('admin.audit_logs.index', compact('logs','restaurants','branches','role','restaurantId','branchId','qRestaurant','qBranch','qUser','qMethod'));
     }
