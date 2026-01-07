@@ -36,8 +36,8 @@ class BranchAdminMiddleware
                 'settings.gdpr.delete_user','settings.gdpr.consents.export',
                 'settings.restaurants','settings.restaurants.create','settings.restaurants.store',
                 'settings.restaurants.edit','settings.restaurants.update','settings.restaurants.destroy',
-                'settings.branches','settings.branches.create','settings.branches.store',
-                'settings.branches.edit','settings.branches.update','settings.branches.destroy',
+                'settings.branches.create','settings.branches.store',
+                'settings.branches.destroy',
                 'settings.context.save','branch.select','branch.clear',
                 'menu.categories.copy.form','menu.categories.copy',
             ];
