@@ -18,7 +18,7 @@
       <th>Name</th>
       <th>Business ID</th>
       <th>Status</th>
-      <th style="width:240px"></th>
+      <th style="width:280px"></th>
     </tr>
   </thead>
   <tbody>
@@ -28,8 +28,19 @@
         <td>{{ $b['businessId'] ?? '-' }}</td>
         <td>{{ $b['status'] }}</td>
         <td class="text-end">
-          @if(session('role') === 'admin' || session('role') === 'restaurant_admin')
+          @if(session('role') === 'admin' || session('role') === 'restaurant_admin' || session('role') === 'branch_admin')
             <a class="btn btn-sm btn-outline-secondary" href="{{ route('settings.branches.edit', [$restaurantId, $b['id']]) }}">Edit</a>
+            <form action="{{ route('settings.branches.toggle', [$restaurantId, $b['id']]) }}" method="POST" class="d-inline">
+              @csrf
+              @method('PATCH')
+              @if(($b['status'] ?? '') === 'open')
+                <button class="btn btn-sm btn-outline-warning">Close</button>
+              @else
+                <button class="btn btn-sm btn-outline-success">Open</button>
+              @endif
+            </form>
+          @endif
+          @if(session('role') === 'admin' || session('role') === 'restaurant_admin')
             <form action="{{ route('settings.branches.destroy', [$restaurantId, $b['id']]) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete branch?')">
               @csrf
               @method('DELETE')

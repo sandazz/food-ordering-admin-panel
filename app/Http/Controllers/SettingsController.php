@@ -317,6 +317,17 @@ class SettingsController extends Controller
     public function branches(FirebaseService $firebase, string $restaurantId)
     {
         $branches = $this->listBranches($firebase, $restaurantId);
+        
+        // For branch_admin, filter to show only their assigned branch
+        if (session('role') === 'branch_admin') {
+            $branchId = session('branchId');
+            if ($branchId) {
+                $branches = array_filter($branches, function($b) use ($branchId) {
+                    return $b['id'] === $branchId;
+                });
+            }
+        }
+        
         return view('admin.settings.branches.index', compact('branches', 'restaurantId'));
     }
 
@@ -394,6 +405,13 @@ class SettingsController extends Controller
 
     public function editBranch(FirebaseService $firebase, string $restaurantId, string $branchId)
     {
+        // For branch_admin, ensure they can only edit their own branch
+        if (session('role') === 'branch_admin') {
+            if ($branchId !== session('branchId')) {
+                abort(403, 'Branch admin can only edit their own branch');
+            }
+        }
+        
         $doc = $firebase->getDocument("restaurants/{$restaurantId}/branches", $branchId);
         $f = $doc['fields'] ?? [];
         $branch = [
@@ -432,6 +450,13 @@ class SettingsController extends Controller
 
     public function updateBranch(Request $request, FirebaseService $firebase, string $restaurantId, string $branchId)
     {
+        // For branch_admin, ensure they can only update their own branch
+        if (session('role') === 'branch_admin') {
+            if ($branchId !== session('branchId')) {
+                abort(403, 'Branch admin can only update their own branch');
+            }
+        }
+        
         $data = $request->validate([
             'name' => 'required|string|max:150',
             'contact' => 'nullable|string|max:120',
@@ -533,6 +558,26 @@ class SettingsController extends Controller
     {
         $firebase->deleteDocument("restaurants/{$restaurantId}/branches", $branchId);
         return redirect()->route('settings.branches', $restaurantId)->with('status', 'Branch deleted');
+    }
+
+    public function toggleBranchStatus(Request $request, FirebaseService $firebase, string $restaurantId, string $branchId)
+    {
+        // Ensure restaurant/branch context
+        $doc = $firebase->getDocument("restaurants/{$restaurantId}/branches", $branchId);
+        $f = $doc['fields'] ?? [];
+        $current = $f['status']['stringValue'] ?? 'close';
+        $new = ($current === 'open') ? 'close' : 'open';
+
+        $before = ['status' => $current, 'branchId' => $branchId];
+        $after = ['status' => $new, 'branchId' => $branchId];
+        $request->attributes->set('audit_before', $before);
+        $request->attributes->set('audit_after', $after);
+
+        $firebase->updateDocument("restaurants/{$restaurantId}/branches", $branchId, [
+            'status' => $new,
+        ]);
+
+        return back()->with('status', $new === 'open' ? 'Branch opened' : 'Branch closed');
     }
 
     // Helpers

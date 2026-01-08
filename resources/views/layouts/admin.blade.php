@@ -687,12 +687,14 @@
                 <i class="bi bi-bell"></i>
                 {{ \App\Utils\UIStrings::t('nav.notifications') }}
             </a>   
-            @if(in_array(session('role'), ['admin','restaurant_admin'], true))
+            @endif
+            @if(in_array(session('role'), ['admin','restaurant_admin','branch_admin'], true))
             <a href="{{ session('restaurantId') ? route('settings.branches', ['restaurantId' => session('restaurantId')]) : route('settings.index') }}" class="{{ request()->is('admin/settings/restaurants/*/branches*') ? 'active' : '' }}">
                 <i class="bi bi-diagram-3"></i>
                 {{ \App\Utils\UIStrings::t('nav.branches') ?? 'Branches' }}
             </a>
-            @endif   
+            @endif
+            @if(session('role') !== 'branch_admin')   
             <a href="{{ url('/admin/settings') }}" class="{{ request()->is('admin/settings') ? 'active' : '' }}">
                 <i class="bi bi-gear"></i>
                 {{ \App\Utils\UIStrings::t('nav.settings') }}

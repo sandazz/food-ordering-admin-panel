@@ -173,6 +173,7 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\BranchAdminMiddleware::
     Route::post('/settings/restaurants/{restaurantId}/branches', [SettingsController::class, 'storeBranch'])->name('settings.branches.store');
     Route::get('/settings/restaurants/{restaurantId}/branches/{branchId}/edit', [SettingsController::class, 'editBranch'])->name('settings.branches.edit');
     Route::put('/settings/restaurants/{restaurantId}/branches/{branchId}', [SettingsController::class, 'updateBranch'])->name('settings.branches.update');
+    Route::patch('/settings/restaurants/{restaurantId}/branches/{branchId}/toggle', [SettingsController::class, 'toggleBranchStatus'])->name('settings.branches.toggle');
     Route::delete('/settings/restaurants/{restaurantId}/branches/{branchId}', [SettingsController::class, 'destroyBranch'])->name('settings.branches.destroy');
 
     // Restaurant Admins management (super admin creates restaurant-scoped admins)

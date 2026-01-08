@@ -300,9 +300,9 @@ class PaymentHistoryController extends Controller
         } elseif ($role === 'branch_admin') {
             // Branch Admin: Only their assigned branch
             if ($branchId) {
-                $branchDoc = $firebase->getDocument("restaurants/{$restaurantId}/branches/{$branchId}");
+                $branchDoc = $firebase->getDocument("restaurants/{$restaurantId}/branches", $branchId);
                 $bf = $branchDoc['fields'] ?? [];
-                
+
                 $branches[] = [
                     'id' => $branchId,
                     'name' => $bf['name']['stringValue'] ?? $branchId,
