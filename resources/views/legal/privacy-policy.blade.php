@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Privacy Policy - My Food App</title>
+    <title>Privacy Policy - Moi ! Poke Food Ordering Application</title>
     <style>
         * {
             margin: 0;
@@ -117,18 +117,18 @@
         <h1>Privacy Policy</h1>
         
         <div class="effective-date">
-            Effective Date: January 1, 2025
+            Effective Date: January 1, 2026
         </div>
 
         <h2>1. Introduction</h2>
         <p>
-            Welcome to My Food App. We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, store, and share your information when you use our mobile application and related services.
+            Welcome to Moi ! Poke Food Ordering Application. We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, store, and share your information when you use our mobile application and related services.
         </p>
         <p>
-            My Food App is a food ordering platform that allows you to browse restaurant menus, place orders, and make secure payments. We operate in Finland and serve international users. This Privacy Policy complies with the General Data Protection Regulation (GDPR) and applicable data protection laws.
+            Moi ! Poke Food Ordering Application is a food ordering platform that allows you to browse restaurant menus, place orders, and make secure payments. We operate in Finland and serve international users. This Privacy Policy complies with the General Data Protection Regulation (GDPR) and applicable data protection laws.
         </p>
         <p>
-            By using My Food App, you agree to the collection and use of information in accordance with this policy. If you do not agree with any part of this Privacy Policy, please do not use our services.
+            By using Moi ! Poke Food Ordering Application, you agree to the collection and use of information in accordance with this policy. If you do not agree with any part of this Privacy Policy, please do not use our services.
         </p>
 
         <h2>2. Information We Collect</h2>
@@ -143,13 +143,13 @@
         <ul>
             <li><strong>Account Information:</strong> Name, email address, phone number, and password (encrypted)</li>
             <li><strong>Profile Information:</strong> Profile picture, dietary preferences, saved addresses</li>
-            <li><strong>Authentication Data:</strong> Information received from Firebase Authentication when you sign in using Email/Password, Google Sign-In, or Apple Sign-In</li>
+            <li><strong>Authentication Data:</strong> Information received from Firebase Authentication when you sign in using Email/Password or Google Sign-In</li>
             <li><strong>Delivery Information:</strong> Delivery addresses, contact details for order fulfillment</li>
         </ul>
 
         <h3>2.2 Order & Transaction Data</h3>
         <p>
-            When you place an order through My Food App, we collect:
+            When you place an order through Moi ! Poke Food Ordering Application, we collect:
         </p>
         <ul>
             <li><strong>Order Details:</strong> Items ordered, quantities, prices, special instructions</li>
@@ -204,7 +204,7 @@
             We use Firebase services provided by Google for:
         </p>
         <ul>
-            <li><strong>Firebase Authentication:</strong> User authentication and identity management (Email/Password, Google Sign-In, Apple Sign-In)</li>
+            <li><strong>Firebase Authentication:</strong> User authentication and identity management (Email/Password, Google Sign-In)</li>
             <li><strong>Firebase Firestore:</strong> Database storage for user profiles, orders, cart data, and app content</li>
             <li><strong>Firebase Cloud Messaging:</strong> Push notifications for order status updates</li>
             <li><strong>Firebase Analytics:</strong> App usage analytics and performance monitoring</li>
@@ -213,7 +213,7 @@
             Firebase operates under Google's Privacy Policy. Learn more at: <a href="https://firebase.google.com/support/privacy" target="_blank">https://firebase.google.com/support/privacy</a>
         </p>
 
-        <h3>4.2 Paytrail (Paytrail Oyj)</h3>
+        <h3>4.2 Paytrail</h3>
         <p>
             We use Paytrail as our payment service provider to process online card payments securely:
         </p>
@@ -224,7 +224,7 @@
             <li>We only receive transaction confirmation data (transaction ID, status, amount)</li>
         </ul>
         <p>
-            Learn more about Paytrail's privacy practices at: <a href="https://www.paytrail.com/en/privacy-policy" target="_blank">https://www.paytrail.com/en/privacy-policy</a>
+            Learn more about Paytrail's privacy practices at: <a href="https://www.paytrail.com/en/data-privacy-notice-paytrail-payment-service" target="_blank">https://www.paytrail.com/en/data-privacy-notice-paytrail-payment-service</a>
         </p>
 
         <h3>4.3 Other Third-Party Services</h3>
@@ -334,7 +334,7 @@
 
         <h2>9. Children's Privacy</h2>
         <p>
-            My Food App is not intended for use by children under the age of 13 (or 16 in certain European jurisdictions). We do not knowingly collect personal information from children under these ages.
+            Moi ! Poke Food Ordering Application is not intended for use by children under the age of 13 (or 16 in certain European jurisdictions). We do not knowingly collect personal information from children under these ages.
         </p>
         <p>
             If you are a parent or guardian and believe that your child has provided us with personal information without your consent, please contact us immediately. We will take steps to remove such information from our systems.
@@ -363,7 +363,7 @@
             <li>In some cases, request your consent for material changes</li>
         </ul>
         <p>
-            We encourage you to review this Privacy Policy periodically. Your continued use of My Food App after changes are made constitutes acceptance of the updated policy.
+            We encourage you to review this Privacy Policy periodically. Your continued use of Moi ! Poke Food Ordering Application after changes are made constitutes acceptance of the updated policy.
         </p>
 
         <h2>12. Contact Information</h2>
@@ -372,9 +372,9 @@
                 If you have any questions, concerns, or requests regarding this Privacy Policy or how we handle your personal information, please contact us:
             </p>
             <p style="margin-top: 15px;">
-                <strong>My Food App</strong><br>
-                Email: <a href="mailto:privacy@myfoodapp.com">privacy@myfoodapp.com</a><br>
-                Support Email: <a href="mailto:support@myfoodapp.com">support@myfoodapp.com</a><br>
+                <strong>Moi ! Poke Food Ordering Application</strong><br>
+                Email: <a href="mailto:info@webkeskus.fi">info@webkeskus.fi</a><br>
+                Support Email: <a href="mailto:webkeskus@gmail.com">webkeskus@gmail.com</a><br>
             </p>
             <p style="margin-top: 10px;">
                 We will respond to your inquiries within 30 days.
@@ -382,9 +382,9 @@
         </div>
 
         <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #ecf0f1; text-align: center; color: #7f8c8d; font-size: 0.9em;">
-            <p>© 2025 My Food App. All rights reserved.</p>
+            <p>© 2026 Moi ! Poke Food Ordering Application. All rights reserved.</p>
             <p style="margin-top: 10px;">
-                This Privacy Policy is effective as of January 1, 2025 and governs the collection, use, and disclosure of personal information through My Food App mobile application and related services.
+                This Privacy Policy is effective as of January 1, 2026 and governs the collection, use, and disclosure of personal information through Moi ! Poke Food Ordering Application mobile application and related services.
             </p>
         </div>
     </div>
