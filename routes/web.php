@@ -20,6 +20,7 @@ use App\Http\Controllers\IngredientsController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\PaymentConfigController;
 use App\Http\Controllers\PaymentHistoryController;
+use App\Http\Controllers\AccountDeletionController;
 
 // Redirect root to selection if logged in without restaurant, otherwise admin or login
 Route::get('/', function() {
@@ -35,6 +36,10 @@ Route::get('/firebase-test', [FirebaseController::class, 'test']);
 Route::get('/privacy-policy', function () {
     return view('legal.privacy-policy');
 })->name('privacy.policy');
+
+// Account deletion routes (public, no authentication required)
+Route::get('/delete-account', [AccountDeletionController::class, 'showDeletionForm'])->name('account.delete.form');
+Route::post('/delete-account', [AccountDeletionController::class, 'requestDeletion'])->name('account.delete.request');
 
 // Auth (Firebase email/password)
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');

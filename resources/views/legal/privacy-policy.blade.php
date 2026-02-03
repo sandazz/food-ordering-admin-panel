@@ -300,8 +300,35 @@
 
         <h3>8.3 Right to Deletion</h3>
         <p>
-            You have the right to request deletion of your personal information. You can delete your account through the app settings, which will remove your personal data subject to legal retention requirements. To request complete data deletion, please contact us using the information provided in Section 12.
+            You have the right to request deletion of your personal information. You can delete your account and all associated data at any time without needing to log in.
         </p>
+        
+        <div class="important" style="background-color: #e8f5e9; border-left: 4px solid #4caf50;">
+            <strong>🗑️ Delete Your Account:</strong> 
+            <p style="margin-top: 10px;">
+                To permanently delete your account and all personal data from our systems, visit our account deletion page:
+            </p>
+            <p style="margin-top: 15px; text-align: center;">
+                <a href="{{ route('account.delete.form') }}" style="display: inline-block; padding: 12px 30px; background-color: #e74c3c; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                    Delete My Account
+                </a>
+            </p>
+            <p style="margin-top: 15px; font-size: 0.9em;">
+                No login required. Simply enter your email address to receive a verification link. This process complies with Apple App Store data deletion requirements under Guideline 5.1.1(v).
+            </p>
+        </div>
+        
+        <p>
+            When you delete your account:
+        </p>
+        <ul>
+            <li>Your account will be permanently removed from Firebase Authentication</li>
+            <li>All personal information (name, email, phone number) will be deleted</li>
+            <li>Your order history and transaction records will be removed</li>
+            <li>Saved addresses and preferences will be deleted</li>
+            <li>Device tokens and notification settings will be removed</li>
+            <li>This action cannot be undone - you'll need to create a new account to use our services again</li>
+        </ul>
 
         <h3>8.4 Right to Data Portability</h3>
         <p>
