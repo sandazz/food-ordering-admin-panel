@@ -265,6 +265,70 @@ class FirebaseService
     }
 
     /**
+     * Get Firebase Auth user by email address.
+     *
+     * @param string $email User's email address
+     * @return array|null User data or null if not found
+     */
+    public function getUserByEmail(string $email): ?array
+    {
+        $token = $this->getAccessToken();
+        $uri = "https://identitytoolkit.googleapis.com/v1/projects/{$this->projectId}/accounts:lookup";
+        $client = new Client($this->guzzleOptions);
+        
+        try {
+            $res = $client->post($uri, [
+                'headers' => [
+                    'Authorization' => "Bearer {$token}",
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'email' => [$email],
+                ],
+            ]);
+
+            if ($res->getStatusCode() === 200) {
+                $body = json_decode($res->getBody()->getContents(), true);
+                return $body['users'][0] ?? null;
+            }
+        } catch (\Exception $e) {
+            \Log::error("Error looking up user by email: " . $e->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * Delete a Firebase Auth user account.
+     *
+     * @param string $localId The Firebase Auth UID (localId)
+     * @return bool True on success
+     */
+    public function deleteUser(string $localId): bool
+    {
+        $token = $this->getAccessToken();
+        $uri = "https://identitytoolkit.googleapis.com/v1/projects/{$this->projectId}/accounts:delete";
+        $client = new Client($this->guzzleOptions);
+        
+        try {
+            $res = $client->post($uri, [
+                'headers' => [
+                    'Authorization' => "Bearer {$token}",
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'localId' => $localId,
+                ],
+            ]);
+
+            return in_array($res->getStatusCode(), [200, 204], true);
+        } catch (\Exception $e) {
+            \Log::error("Error deleting user: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Perform an HTTP request with simple retry/backoff for transient network errors.
      *
      * @param string $method
